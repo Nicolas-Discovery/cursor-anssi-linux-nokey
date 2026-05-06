@@ -1,0 +1,148 @@
+---
+- name: "Docker - prerequisites"
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - software-properties-common
+    state: present
+
+- name: "Docker - APT keyring directory"
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "Docker - upstream signing key"
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+    force: false
+
+- name: "Docker - resolve dpkg architecture"
+  ansible.builtin.set_fact:
+    docker_dpkg_arch: "{{ ansible_facts.architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}"
+
+- name: "Docker - APT source list"
+  ansible.builtin.template:
+    src: docker.list.j2
+    dest: /etc/apt/sources.list.d/docker.list
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "Docker - install engine"
+  ansible.builtin.apt:
+    name:
+      - "docker-ce={{ versions.docker_ce }}"
+      - docker-ce-cli
+      - containerd.io
+    state: present
+    update_cache: true
+    allow_change_held_packages: true
+  register: docker_install_result
+  failed_when:
+    - docker_install_result.failed
+    - "'Unable to locate' not in (docker_install_result.msg | default(''))"
+
+- name: "Docker - install latest fallback when pinned not found"
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: present
+  when: docker_install_result is failed
+
+- name: "Docker - install compose plugin"
+  ansible.builtin.apt:
+    name: "docker-compose-plugin={{ versions.docker_compose_plugin }}"
+    state: present
+  when: docker.install_compose_plugin | bool
+  register: docker_compose_install_result
+  failed_when:
+    - docker_compose_install_result.failed
+    - "'Unable to locate' not in (docker_compose_install_result.msg | default(''))"
+
+- name: "Docker - install compose plugin (fallback)"
+  ansible.builtin.apt:
+    name: docker-compose-plugin
+    state: present
+  when:
+    - docker.install_compose_plugin | bool
+    - docker_compose_install_result is failed
+
+- name: "Docker - data root directory"
+  ansible.builtin.file:
+    path: "{{ docker.data_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0710"
+
+- name: "Docker - drop-in directory"
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: "Docker - render daemon.json"
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0640"
+    validate: "/usr/bin/dockerd --validate --config-file %s"
+  notify: Restart docker
+
+- name: "Docker - drop default seccomp profile when configured path doesn't exist"
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/moby/moby/master/profiles/seccomp/default.json
+    dest: "{{ docker.daemon.seccomp_profile }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  when: docker.daemon.seccomp_profile | length > 0
+
+- name: "Docker - lock-down systemd service file"
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/10-anssi.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible (docker role) - ANSSI hardening for systemd unit.
+      [Service]
+      LimitNOFILE=64000
+      LimitNPROC=64000
+      LimitCORE=infinity
+      Restart=on-failure
+      RestartSec=5
+      OOMScoreAdjust=-500
+  notify:
+    - Reload systemd
+    - Restart docker
+
+- name: "Docker - admin group membership"
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker.docker_admin_users }}"
+  when: docker.docker_admin_users | length > 0
+
+- name: "Docker - enable + start"
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+    daemon_reload: true
