@@ -1,0 +1,12 @@
+---
+# Example inventory for the ANSSI BP-028 stack.
+# Copy to inventory/hosts.yml and customise.
+all:
+  hosts:
+    server01.example.org:
+      ansible_host: 203.0.113.10
+      ansible_port: 22
+      ansible_user: ansadmin
+      # password + TOTP -> use --ask-pass on the CLI, do NOT pin a key.
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
