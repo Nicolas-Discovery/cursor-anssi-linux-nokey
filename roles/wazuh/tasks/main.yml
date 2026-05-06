@@ -1,0 +1,83 @@
+---
+- name: "Wazuh - prerequisites"
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+
+- name: "Wazuh - APT keyring directory"
+  ansible.builtin.file:
+    path: /usr/share/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "Wazuh - upstream signing key"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -fsSL {{ wazuh.repo_key_url }} \
+      | gpg --dearmor --yes -o /usr/share/keyrings/wazuh.gpg
+  args:
+    creates: /usr/share/keyrings/wazuh.gpg
+    executable: /bin/bash
+
+- name: "Wazuh - APT source list"
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/wazuh.list
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      deb [signed-by=/usr/share/keyrings/wazuh.gpg] {{ wazuh.repo_url }} stable main
+
+- name: "Wazuh - install agent"
+  ansible.builtin.apt:
+    name: "wazuh-agent={{ versions.wazuh_agent }}"
+    state: present
+    update_cache: true
+    allow_change_held_packages: true
+  register: wazuh_install_result
+  failed_when:
+    - wazuh_install_result.failed
+    - "'Unable to locate' not in (wazuh_install_result.msg | default(''))"
+
+- name: "Wazuh - latest fallback when pinned version not found"
+  ansible.builtin.apt:
+    name: wazuh-agent
+    state: present
+  when: wazuh_install_result is failed
+
+- name: "Wazuh - register agent through authd"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ ! -s /var/ossec/etc/client.keys ]; then
+      /var/ossec/bin/agent-auth \
+        -m {{ wazuh.manager_address | quote }} \
+        -A {{ wazuh.enrollment.agent_name | quote }} \
+        {% if wazuh.enrollment.use_password and wazuh.enrollment.password | length > 0 %}-P {{ wazuh.enrollment.password | quote }}{% endif %} \
+        {% if wazuh.enrollment.groups | length > 0 %}-G "{{ wazuh.enrollment.groups | join(',') }}"{% endif %}
+    fi
+  args:
+    creates: /var/ossec/etc/client.keys
+    executable: /bin/bash
+  no_log: true
+  when: wazuh.enrollment.enabled | bool
+
+- name: "Wazuh - render ossec.conf"
+  ansible.builtin.template:
+    src: ossec.conf.j2
+    dest: /var/ossec/etc/ossec.conf
+    owner: root
+    group: ossec
+    mode: "0640"
+  notify: Restart wazuh-agent
+
+- name: "Wazuh - enable and start"
+  ansible.builtin.systemd:
+    name: wazuh-agent
+    enabled: true
+    state: started
