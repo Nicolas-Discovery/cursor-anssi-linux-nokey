@@ -1,0 +1,79 @@
+---
+- name: "Promtail - prerequisites"
+  ansible.builtin.apt:
+    name:
+      - unzip
+      - ca-certificates
+    state: present
+
+- name: "Promtail - dedicated system user"
+  ansible.builtin.user:
+    name: promtail
+    system: true
+    home: /var/lib/promtail
+    shell: /usr/sbin/nologin
+    create_home: true
+    groups: ["adm", "systemd-journal"]
+    append: true
+
+- name: "Promtail - directories"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ loki.config_dir }}",          owner: root,     group: promtail, mode: "0750" }
+    - { path: "/var/lib/promtail",              owner: promtail, group: promtail, mode: "0750" }
+
+- name: "Promtail - download release archive"
+  ansible.builtin.get_url:
+    url: "{{ loki.binary_url }}"
+    dest: "/tmp/promtail-{{ versions.promtail }}.zip"
+    mode: "0640"
+    checksum: "{{ ('sha256:' ~ loki.binary_sha256) if loki.binary_sha256 | length > 0 else omit }}"
+
+- name: "Promtail - extract"
+  ansible.builtin.unarchive:
+    src: "/tmp/promtail-{{ versions.promtail }}.zip"
+    dest: /tmp/
+    remote_src: true
+    creates: "/tmp/promtail-linux-amd64"
+
+- name: "Promtail - install binary"
+  ansible.builtin.copy:
+    src: /tmp/promtail-linux-amd64
+    dest: "{{ loki.install_dir }}/promtail"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart promtail
+
+- name: "Promtail - configuration"
+  ansible.builtin.template:
+    src: promtail.yaml.j2
+    dest: "{{ loki.config_dir }}/promtail.yaml"
+    owner: root
+    group: promtail
+    mode: "0640"
+  notify: Restart promtail
+
+- name: "Promtail - systemd unit"
+  ansible.builtin.template:
+    src: promtail.service.j2
+    dest: /etc/systemd/system/promtail.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd promtail
+    - Restart promtail
+
+- name: "Promtail - enable and start"
+  ansible.builtin.systemd:
+    name: promtail
+    enabled: true
+    state: started
+    daemon_reload: true
