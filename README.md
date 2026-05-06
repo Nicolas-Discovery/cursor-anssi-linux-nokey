@@ -36,11 +36,23 @@ disabled), **Loki / Promtail** log shipping, and **Wazuh** agent enrolment.
     └── wazuh/                        # Optional Wazuh agent
 ```
 
-## 2. Quick start
+## 2. Supported controller versions
+
+| Component     | Version range                             | Notes |
+| ------------- | ----------------------------------------- | ----- |
+| `ansible-core`  | `>= 2.15, <= 2.18`                      | 2.14 also works but is EOL since Nov 2023; upgrade if possible. |
+| `ansible.posix` | `>= 1.5.4, < 2.0.0` (pinned)            | 2.x requires `ansible-core >= 2.16`; 1.x is broader. |
+| `community.general` | `>= 8.0.0, < 10.0.0` (pinned)       | 12.0.0 removed the `yaml` callback we used to depend on. |
+
+The `ansible.cfg` shipped here uses `stdout_callback = ansible.builtin.default`
+with `result_format = yaml` — the supported replacement for the removed
+`community.general.yaml` callback (available in `ansible-core >= 2.13`).
+
+## 3. Quick start
 
 ```bash
 # 1. Install dependencies on the controller
-ansible-galaxy collection install -r requirements.yml
+ansible-galaxy collection install -r requirements.yml --force
 
 # 2. Customise inventory
 cp inventory/hosts.yml.example inventory/hosts.yml
@@ -67,7 +79,7 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
 > will be locked out. The role prints a hint listing every user missing
 > `~/.google_authenticator`.
 
-## 3. The single variable file (`group_vars/all.yml`)
+## 4. The single variable file (`group_vars/all.yml`)
 
 Every option of every role lives in this file, organised in eight sections:
 
@@ -83,7 +95,7 @@ Every option of every role lives in this file, organised in eight sections:
 | 7. Loki | Promtail binary version + URL, basic auth, TLS, scrape jobs |
 | 8. Wazuh | Manager address + port, enrolment via authd password, agent options |
 
-## 4. GeoIP / firewall logic
+## 5. GeoIP / firewall logic
 
 Decision flow inside the `inet filter` table:
 
@@ -107,7 +119,7 @@ The Python helper `/usr/local/sbin/anssi-geoip-update` downloads
 through a hardened systemd timer, regenerates the include files in
 `/etc/nftables.d/` and reloads the ruleset.
 
-## 5. CrowdSec
+## 6. CrowdSec
 
 * Engine + nftables bouncer (IPv4 **and** IPv6) installed from the upstream
   packagecloud repository.
@@ -125,7 +137,7 @@ through a hardened systemd timer, regenerates the include files in
   continent is not in `allowed_continents`) is banned for
   `crowdsec.geoip_decision_duration`.
 
-## 6. Optional roles
+## 7. Optional roles
 
 | Role | Enable with | Notes |
 | --- | --- | --- |
@@ -133,7 +145,7 @@ through a hardened systemd timer, regenerates the include files in
 | Loki | `role_loki_enabled: true` | Installs Promtail, ships journald + auth.log + audit.log over HTTPS basic auth + tenant ID. |
 | Wazuh | `role_wazuh_enabled: true` | Adds upstream APT repo, installs the agent, registers with `agent-auth -P <password>` and groups. |
 
-## 7. Compliance summary (selected ANSSI BP-028 controls)
+## 8. Compliance summary (selected ANSSI BP-028 controls)
 
 | Control | Implementation |
 | --- | --- |
@@ -151,7 +163,7 @@ through a hardened systemd timer, regenerates the include files in
 | R20 | Chrony with French NTP pool by default |
 | R37-R47 | sysctl drop-in `90-anssi.conf` (kernel + IPv4 + IPv6 hardening) |
 
-## 8. Re-running
+## 9. Re-running
 
 The stack is idempotent. To refresh GeoIP sets only:
 
