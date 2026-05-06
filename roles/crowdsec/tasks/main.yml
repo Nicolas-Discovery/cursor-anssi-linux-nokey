@@ -1,0 +1,126 @@
+---
+- name: "CrowdSec - prerequisites"
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - curl
+      - gnupg
+      - debian-keyring
+      - debian-archive-keyring
+    state: present
+
+- name: "CrowdSec - install upstream APT repository"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ ! -f /etc/apt/sources.list.d/crowdsec_crowdsec.list ]; then
+      curl -fsSL https://install.crowdsec.net | bash -s -- --unattended
+    fi
+  args:
+    creates: /etc/apt/sources.list.d/crowdsec_crowdsec.list
+    executable: /bin/bash
+
+- name: "CrowdSec - install engine"
+  ansible.builtin.apt:
+    name:
+      - "crowdsec={{ versions.crowdsec }}"
+    state: present
+    update_cache: true
+    allow_change_held_packages: true
+  register: crowdsec_install
+  failed_when:
+    - crowdsec_install.failed
+    - "'Unable to locate' not in (crowdsec_install.msg | default(''))"
+
+- name: "CrowdSec - fallback (latest) when pinned version is unavailable"
+  ansible.builtin.apt:
+    name: crowdsec
+    state: present
+    update_cache: true
+  when: crowdsec_install is failed
+
+- name: "CrowdSec - install firewall bouncer (nftables)"
+  ansible.builtin.apt:
+    name: "crowdsec-firewall-bouncer-{{ crowdsec.firewall_bouncer_mode }}"
+    state: present
+  when: crowdsec.install_firewall_bouncer | bool
+
+- name: "CrowdSec - install configured collections"
+  ansible.builtin.command: "cscli collections install {{ item }}"
+  loop: "{{ crowdsec.collections }}"
+  register: crowdsec_collections_install
+  changed_when: "'already' not in (crowdsec_collections_install.stdout | default(''))"
+  failed_when:
+    - crowdsec_collections_install.rc != 0
+    - "'already' not in (crowdsec_collections_install.stdout | default(''))"
+
+- name: "CrowdSec - install configured parsers"
+  ansible.builtin.command: "cscli parsers install {{ item }}"
+  loop: "{{ crowdsec.parsers }}"
+  register: crowdsec_parsers_install
+  changed_when: "'already' not in (crowdsec_parsers_install.stdout | default(''))"
+  failed_when:
+    - crowdsec_parsers_install.rc != 0
+    - "'already' not in (crowdsec_parsers_install.stdout | default(''))"
+
+- name: "CrowdSec - upgrade hub index"
+  ansible.builtin.command: cscli hub update
+  changed_when: false
+
+- name: "CrowdSec - deploy whitelist parser"
+  ansible.builtin.template:
+    src: anssi-whitelists.yaml.j2
+    dest: /etc/crowdsec/parsers/s02-enrich/anssi-whitelists.yaml
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart crowdsec
+
+- name: "CrowdSec - deploy GeoIP continent/country profile"
+  ansible.builtin.template:
+    src: anssi-geoip-profile.yaml.j2
+    dest: /etc/crowdsec/profiles.yaml
+    owner: root
+    group: root
+    mode: "0640"
+  when: crowdsec.geoip_profile_enabled | bool
+  notify: Restart crowdsec
+
+- name: "CrowdSec - enable + start engine"
+  ansible.builtin.systemd:
+    name: crowdsec
+    enabled: true
+    state: started
+
+- name: "CrowdSec - enrol with the central console"
+  ansible.builtin.command: >-
+    cscli console enroll
+    {{ '--overwrite' if crowdsec.enroll_overwrite else '' }}
+    --name {{ crowdsec.enroll_name | quote }}
+    {% for tag in crowdsec.enroll_tags %} --tags {{ tag | quote }}{% endfor %}
+    {{ crowdsec.enroll_token }}
+  when:
+    - crowdsec.enroll_enabled | bool
+    - crowdsec.enroll_token | length > 0
+  register: crowdsec_enroll_result
+  changed_when: "'already enrolled' not in (crowdsec_enroll_result.stdout | default(''))"
+  failed_when:
+    - crowdsec_enroll_result.rc != 0
+    - "'already enrolled' not in (crowdsec_enroll_result.stdout | default(''))"
+  no_log: true
+
+- name: "CrowdSec - configure firewall bouncer for IPv4 + IPv6"
+  ansible.builtin.template:
+    src: crowdsec-firewall-bouncer.yaml.j2
+    dest: "/etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml"
+    owner: root
+    group: root
+    mode: "0640"
+  when: crowdsec.install_firewall_bouncer | bool
+  notify: Restart crowdsec firewall bouncer
+
+- name: "CrowdSec - enable + start firewall bouncer"
+  ansible.builtin.systemd:
+    name: "crowdsec-firewall-bouncer"
+    enabled: true
+    state: started
+  when: crowdsec.install_firewall_bouncer | bool

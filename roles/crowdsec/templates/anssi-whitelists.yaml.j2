@@ -1,0 +1,24 @@
+# Managed by Ansible (crowdsec role) - parser-level whitelist.
+# CrowdSec will not take any decision against the IPs/CIDRs/expressions below.
+name: anssi/whitelists
+description: "{{ crowdsec.whitelist.reason }}"
+whitelist:
+  reason: "{{ crowdsec.whitelist.reason }}"
+{% if crowdsec.whitelist.ips %}
+  ip:
+{% for ip in crowdsec.whitelist.ips %}
+    - "{{ ip }}"
+{% endfor %}
+{% endif %}
+{% if crowdsec.whitelist.cidrs %}
+  cidr:
+{% for cidr in crowdsec.whitelist.cidrs %}
+    - "{{ cidr }}"
+{% endfor %}
+{% endif %}
+{% if crowdsec.whitelist.expression %}
+  expression:
+{% for expr in crowdsec.whitelist.expression %}
+    - {{ expr }}
+{% endfor %}
+{% endif %}
