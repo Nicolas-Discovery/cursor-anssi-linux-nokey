@@ -1,0 +1,35 @@
+---
+# We only tighten an entry if it is already a mount point (separate FS) or has
+# its own /etc/fstab line. We never create a new mount point here.
+- name: "Filesystem - read /etc/fstab"
+  ansible.builtin.slurp:
+    src: /etc/fstab
+  register: anssi_base_fstab_raw
+
+- name: "Filesystem - parse fstab content"
+  ansible.builtin.set_fact:
+    anssi_base_fstab_lines: "{{ anssi_base_fstab_raw.content | b64decode | split('\n') }}"
+
+- name: "Filesystem - set hardened mount options"
+  ansible.posix.mount:
+    path: "{{ item.mount }}"
+    state: present
+    src: "{{ (anssi_base_fstab_lines | select('match', '^[^#]+\\s+' ~ (item.mount | regex_escape) ~ '\\s') | list | first | default('')).split() | first | default(omit) }}"
+    fstype: "{{ (anssi_base_fstab_lines | select('match', '^[^#]+\\s+' ~ (item.mount | regex_escape) ~ '\\s') | list | first | default('')).split()[2] | default(omit) }}"
+    opts: "{{ item.options }}"
+  loop: "{{ anssi_base.fstab_hardening }}"
+  loop_control:
+    label: "{{ item.mount }}"
+  when:
+    - anssi_base_fstab_lines | select('match', '^[^#]+\\s+' ~ (item.mount | regex_escape) ~ '\\s') | list | length > 0
+
+- name: "Filesystem - SUID/SGID minimisation report (R47)"
+  ansible.builtin.shell: |
+    set -o pipefail
+    find / -xdev \( -perm -4000 -o -perm -2000 \) -type f \
+        -not -path '/proc/*' -not -path '/sys/*' \
+        -printf '%p %m %u:%g\n' 2>/dev/null > /var/log/anssi-suid-sgid.list
+  args:
+    executable: /bin/bash
+  changed_when: false
+  failed_when: false

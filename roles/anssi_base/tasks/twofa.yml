@@ -1,0 +1,52 @@
+---
+# 2FA: password (PAM unix) + TOTP (pam_google_authenticator).
+- name: "2FA - install libpam-google-authenticator"
+  ansible.builtin.apt:
+    name: libpam-google-authenticator
+    state: present
+
+- name: "2FA - drop hardened pam_google_authenticator config"
+  ansible.builtin.template:
+    src: google-authenticator-config.j2
+    dest: /etc/security/google-authenticator.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "2FA - configure /etc/pam.d/sshd for password + TOTP chain"
+  ansible.builtin.template:
+    src: pam-sshd.j2
+    dest: /etc/pam.d/sshd
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart sshd
+
+- name: "2FA - sanity check that enforced users exist"
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ item }}"
+  loop: "{{ anssi_base.twofa.enforced_users }}"
+  register: anssi_base_twofa_userlookup
+  failed_when: false
+
+- name: "2FA - warn if a user has no TOTP secret yet"
+  ansible.builtin.stat:
+    path: "/home/{{ item }}/.google_authenticator"
+  loop: "{{ anssi_base.twofa.enforced_users }}"
+  register: anssi_base_twofa_secret
+  changed_when: false
+
+- name: "2FA - print provisioning hint when TOTP secret is missing"
+  ansible.builtin.debug:
+    msg: >-
+      User '{{ item.item }}' has no .google_authenticator yet.
+      Run, as that user, on the host:
+        google-authenticator -t -d -f -r {{ anssi_base.twofa.rate_limit }} -W -e 5
+        chmod 0400 ~/.google_authenticator
+      BEFORE rotating the SSH session, otherwise login will fail (nullok=false).
+  loop: "{{ anssi_base_twofa_secret.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not item.stat.exists

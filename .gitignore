@@ -1,0 +1,9 @@
+collections/
+.ansible_facts_cache/
+*.retry
+inventory/hosts.yml
+inventory/secrets.vault.yml
+.vagrant/
+__pycache__/
+*.pyc
+.venv/

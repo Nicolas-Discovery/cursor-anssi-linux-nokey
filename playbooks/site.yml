@@ -1,0 +1,53 @@
+---
+# =============================================================================
+# Master playbook - applies the whole ANSSI BP-028 stack on a Debian 13 host.
+# =============================================================================
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
+#       --ask-pass --ask-become-pass \
+#       -e @inventory/secrets.vault.yml --ask-vault-pass
+#
+# All tunables live in group_vars/all.yml. Toggle optional roles via
+# `role_*_enabled` variables in that file.
+
+- name: "ANSSI BP-028 critical - Debian 13"
+  hosts: all
+  gather_facts: true
+  become: true
+  any_errors_fatal: true
+  serial: 1
+  pre_tasks:
+    - name: "Refuse to run if SSH key authentication is enabled in inventory"
+      ansible.builtin.assert:
+        that:
+          - "(ansible_ssh_private_key_file is not defined) or (ansible_ssh_private_key_file is none)"
+        fail_msg: >-
+          This stack mandates password+TOTP authentication.
+          Remove ansible_ssh_private_key_file from your inventory and use
+          --ask-pass / ANSIBLE_BECOME_PASS instead.
+        success_msg: "OK - inventory does not pin a private SSH key."
+
+  roles:
+    - role: anssi_base
+      when: role_anssi_base_enabled | bool
+      tags: [base, anssi]
+
+    - role: nftables
+      when: role_nftables_enabled | bool
+      tags: [firewall, nftables]
+
+    - role: crowdsec
+      when: role_crowdsec_enabled | bool
+      tags: [crowdsec, ips]
+
+    - role: docker
+      when: role_docker_enabled | bool
+      tags: [docker, optional]
+
+    - role: loki
+      when: role_loki_enabled | bool
+      tags: [loki, logs, optional]
+
+    - role: wazuh
+      when: role_wazuh_enabled | bool
+      tags: [wazuh, hids, optional]

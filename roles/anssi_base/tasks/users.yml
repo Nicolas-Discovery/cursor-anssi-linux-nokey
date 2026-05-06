@@ -1,0 +1,44 @@
+---
+- name: "Users - ensure SSH admin group exists"
+  ansible.builtin.group:
+    name: "{{ anssi_base.admin_group }}"
+    state: present
+    system: false
+
+- name: "Users - create local administrative accounts"
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    comment: "{{ item.comment | default('') }}"
+    uid: "{{ item.uid | default(omit) }}"
+    shell: "{{ item.shell | default('/bin/bash') }}"
+    groups: "{{ item.groups | default([]) | join(',') }}"
+    append: true
+    create_home: true
+    state: present
+    password: "{{ lookup('vars', item.password_hash_var, default='!') }}"
+    update_password: on_create
+  loop: "{{ anssi_base.admin_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "Users - lock root local password (R26)"
+  ansible.builtin.user:
+    name: root
+    password_lock: true
+  when: anssi_base.lock_root_account | bool
+
+- name: "Users - set login.defs hardening"
+  ansible.builtin.template:
+    src: login.defs.j2
+    dest: /etc/login.defs
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: "Users - default umask 027"
+  ansible.builtin.lineinfile:
+    path: /etc/profile
+    regexp: '^umask\s+'
+    line: "umask {{ anssi_base.pam.login_defs.umask }}"
+    state: present

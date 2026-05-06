@@ -1,0 +1,20 @@
+// Managed by Ansible (anssi_base) - ANSSI BP-028 R5
+Unattended-Upgrade::Origins-Pattern {
+{% for origin in anssi_base.unattended_upgrades.allowed_origins %}
+    "{{ origin }}";
+{% endfor %}
+};
+
+Unattended-Upgrade::Package-Blacklist { };
+
+Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+Unattended-Upgrade::MinimalSteps "true";
+Unattended-Upgrade::InstallOnShutdown "false";
+Unattended-Upgrade::Mail "root";
+Unattended-Upgrade::MailReport "on-change";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "{{ 'true' if anssi_base.unattended_upgrades.automatic_reboot else 'false' }}";
+Unattended-Upgrade::Automatic-Reboot-Time "{{ anssi_base.unattended_upgrades.automatic_reboot_time }}";
+Unattended-Upgrade::SyslogEnable "true";
+Unattended-Upgrade::Verbose "true";

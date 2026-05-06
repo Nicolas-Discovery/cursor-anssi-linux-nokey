@@ -1,0 +1,24 @@
+---
+- name: "Banner - deploy /etc/issue"
+  ansible.builtin.copy:
+    dest: /etc/issue
+    owner: root
+    group: root
+    mode: "0644"
+    content: "{{ anssi_base.banner_text }}"
+
+- name: "Banner - deploy /etc/issue.net"
+  ansible.builtin.copy:
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: "0644"
+    content: "{{ anssi_base.banner_text }}"
+
+- name: "Banner - deploy /etc/motd (PrintMotd is off, but kept for local logins)"
+  ansible.builtin.copy:
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: "0644"
+    content: "{{ anssi_base.banner_text }}"

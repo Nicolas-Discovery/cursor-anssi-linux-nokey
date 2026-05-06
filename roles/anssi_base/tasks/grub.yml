@@ -1,0 +1,35 @@
+---
+- name: "GRUB - drop-in directory"
+  ansible.builtin.file:
+    path: /etc/default/grub.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "GRUB - apply hardened cmdline"
+  ansible.builtin.template:
+    src: grub-anssi.cfg.j2
+    dest: /etc/default/grub.d/10-anssi.cfg
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update grub
+
+- name: "GRUB - protect bootloader with PBKDF2 password (R12)"
+  ansible.builtin.template:
+    src: grub-superuser.j2
+    dest: /etc/grub.d/01_anssi_password
+    owner: root
+    group: root
+    mode: "0755"
+  when: anssi_base.grub_password_pbkdf2 | length > 0
+  notify: Update grub
+
+- name: "GRUB - protect /boot/grub/grub.cfg from world read"
+  ansible.builtin.file:
+    path: /boot/grub/grub.cfg
+    owner: root
+    group: root
+    mode: "0400"
+  failed_when: false

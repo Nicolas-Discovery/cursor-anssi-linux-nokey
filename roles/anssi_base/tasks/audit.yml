@@ -1,0 +1,34 @@
+---
+- name: "Auditd - configure /etc/audit/auditd.conf"
+  ansible.builtin.template:
+    src: auditd.conf.j2
+    dest: /etc/audit/auditd.conf
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart auditd
+
+- name: "Auditd - deploy ANSSI audit rules"
+  ansible.builtin.template:
+    src: audit-anssi.rules.j2
+    dest: /etc/audit/rules.d/99-anssi.rules
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart auditd
+
+- name: "Auditd - enable and start"
+  ansible.builtin.systemd:
+    name: auditd
+    enabled: true
+    state: started
+
+- name: "Auditd - ensure audit=1 cmdline persists across kernel updates"
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub.d/99-anssi.cfg
+    line: 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX audit=1 audit_backlog_limit=8192"'
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update grub

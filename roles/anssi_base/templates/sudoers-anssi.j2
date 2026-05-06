@@ -1,0 +1,22 @@
+# Managed by Ansible (anssi_base) - ANSSI BP-028 R59
+Defaults    use_pty
+Defaults    log_input,log_output
+Defaults    iolog_dir="/var/log/sudo-io"
+Defaults    logfile="{{ anssi_base.sudo.log_file }}"
+Defaults    timestamp_timeout={{ anssi_base.sudo.timeout }}
+Defaults    passwd_timeout=1
+Defaults    passwd_tries=3
+Defaults    requiretty
+Defaults    !visiblepw
+Defaults    env_reset
+Defaults    secure_path="{{ anssi_base.sudo.secure_path }}"
+Defaults    mail_badpass
+Defaults    mail_no_user
+Defaults    mail_no_host
+Defaults    mail_no_perms
+
+%sudo ALL=(ALL:ALL) PASSWD: ALL
+{% if not anssi_base.sudo.require_password %}
+# WARNING: NOPASSWD enabled for {{ anssi_base.admin_group }} - NOT ANSSI compliant.
+%{{ anssi_base.admin_group }} ALL=(ALL:ALL) NOPASSWD: ALL
+{% endif %}

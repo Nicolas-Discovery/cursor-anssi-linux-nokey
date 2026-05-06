@@ -1,0 +1,14 @@
+# Managed by Ansible (anssi_base) - ANSSI BP-028 R68/R69
+minlen          = {{ anssi_base.pam.pwquality.minlen }}
+dcredit         = {{ anssi_base.pam.pwquality.dcredit }}
+ucredit         = {{ anssi_base.pam.pwquality.ucredit }}
+lcredit         = {{ anssi_base.pam.pwquality.lcredit }}
+ocredit         = {{ anssi_base.pam.pwquality.ocredit }}
+minclass        = {{ anssi_base.pam.pwquality.minclass }}
+maxrepeat       = {{ anssi_base.pam.pwquality.maxrepeat }}
+maxclassrepeat  = {{ anssi_base.pam.pwquality.maxclassrepeat }}
+gecoscheck      = {{ anssi_base.pam.pwquality.gecoscheck }}
+dictcheck       = {{ anssi_base.pam.pwquality.dictcheck }}
+enforce_for_root = {{ 1 if anssi_base.pam.pwquality.enforce_for_root else 0 }}
+retry           = {{ anssi_base.pam.pwquality.retry }}
+difok           = {{ anssi_base.pam.pwquality.difok }}

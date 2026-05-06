@@ -1,0 +1,33 @@
+# Managed by Ansible (crowdsec role) - GeoIP-based profile.
+#
+# The geoip-enrich parser populates `evt.Enriched.IsoCode` (country) and
+# `evt.Enriched.IsInEU` and the continent flag through `evt.Enriched.Continent`.
+# We mirror the nftables policy at the application layer:
+#   * if continent NOT in allowed_continents AND country NOT in allowed_countries
+#       -> ban
+#   * if country in blocked_countries -> ban (overrides)
+name: anssi/geoip-block
+filters:
+{% set allowed_continents = nftables.geoip.allowed_continents | map('upper') | list %}
+{% set allowed_countries  = nftables.geoip.allowed_countries  | map('upper') | list %}
+{% set blocked_countries  = nftables.geoip.blocked_countries  | map('upper') | list %}
+{% if blocked_countries %}
+  - 'Alert.Source.IsValid() && Alert.Source.Cn in [{% for c in blocked_countries %}"{{ c }}"{{ "," if not loop.last }}{% endfor %}]'
+{% endif %}
+{% if allowed_continents or allowed_countries %}
+  - 'Alert.Source.IsValid() && (not (Alert.Source.GetMetaValue("continent") in [{% for c in allowed_continents %}"{{ c }}"{{ "," if not loop.last }}{% endfor %}]) && not (Alert.Source.Cn in [{% for c in allowed_countries %}"{{ c }}"{{ "," if not loop.last }}{% endfor %}]))'
+{% endif %}
+decisions:
+  - type: {{ crowdsec.geoip_decision_type }}
+    duration: {{ crowdsec.geoip_decision_duration }}
+on_success: break
+
+---
+# Default profile (kept after geoip rules so they take precedence)
+name: default_ip_remediation
+filters:
+  - Alert.Remediation == true && Alert.GetScope() == "Ip"
+decisions:
+  - type: ban
+    duration: 4h
+on_success: break

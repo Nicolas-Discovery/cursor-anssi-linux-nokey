@@ -1,0 +1,8 @@
+# Managed by Ansible (anssi_base) - hint file consumed by operators when running
+# `google-authenticator` interactively. The real PAM config is in /etc/pam.d/sshd.
+# Suggested provisioning command:
+#   google-authenticator -t -d -f -r {{ anssi_base.twofa.rate_limit }} -W -e 5 -i "{{ anssi_base.twofa.issuer }}"
+ISSUER="{{ anssi_base.twofa.issuer }}"
+RATE_LIMIT="{{ anssi_base.twofa.rate_limit }}"
+WINDOW_SIZE="{{ anssi_base.twofa.window_size }}"
+NULLOK="{{ 'yes' if anssi_base.twofa.nullok else 'no' }}"

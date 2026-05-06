@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ANSSI GeoIP nftables sets refresher periodically
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec={{ '24h' if nftables.geoip.refresh_interval == 'daily' else nftables.geoip.refresh_interval }}
+Persistent=true
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

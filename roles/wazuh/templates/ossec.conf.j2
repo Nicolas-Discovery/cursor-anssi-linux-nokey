@@ -1,0 +1,84 @@
+<!-- Managed by Ansible (wazuh role) -->
+<ossec_config>
+  <client>
+    <server>
+      <address>{{ wazuh.manager_address }}</address>
+      <port>{{ wazuh.manager_port }}</port>
+      <protocol>{{ wazuh.manager_protocol }}</protocol>
+    </server>
+    <config-profile>{{ wazuh.enrollment.groups | join(',') }}</config-profile>
+    <notify_time>{{ wazuh.agent_config.notify_time }}</notify_time>
+    <time-reconnect>{{ wazuh.agent_config.time_reconnect }}</time-reconnect>
+    <auto_restart>{{ 'yes' if wazuh.agent_config.auto_restart else 'no' }}</auto_restart>
+    <crypto_method>aes</crypto_method>
+{% if wazuh.enrollment.enabled %}
+    <enrollment>
+      <enabled>yes</enabled>
+      <manager_address>{{ wazuh.manager_address }}</manager_address>
+      <agent_name>{{ wazuh.enrollment.agent_name }}</agent_name>
+{% if wazuh.enrollment.use_password %}
+      <authorization_pass_path>/var/ossec/etc/authd.pass</authorization_pass_path>
+{% endif %}
+{% if wazuh.enrollment.groups %}
+      <groups>{{ wazuh.enrollment.groups | join(',') }}</groups>
+{% endif %}
+    </enrollment>
+{% endif %}
+  </client>
+
+{% if wazuh.agent_config.enable_logcollector %}
+  <localfile>
+    <log_format>{{ wazuh.agent_config.log_format }}</log_format>
+    <location>/var/log/auth.log</location>
+  </localfile>
+  <localfile>
+    <log_format>{{ wazuh.agent_config.log_format }}</log_format>
+    <location>/var/log/syslog</location>
+  </localfile>
+  <localfile>
+    <log_format>audit</log_format>
+    <location>/var/log/audit/audit.log</location>
+  </localfile>
+  <localfile>
+    <log_format>journald</log_format>
+    <location>journald</location>
+  </localfile>
+{% endif %}
+
+{% if wazuh.agent_config.enable_syscheck %}
+  <syscheck>
+    <disabled>no</disabled>
+    <frequency>43200</frequency>
+    <scan_on_start>yes</scan_on_start>
+    <directories check_all="yes" realtime="yes" report_changes="yes">/etc,/usr/bin,/usr/sbin,/bin,/sbin</directories>
+    <directories check_all="yes" realtime="yes">/var/ossec/etc</directories>
+    <ignore>/etc/mtab</ignore>
+    <ignore>/etc/random-seed</ignore>
+    <ignore>/etc/adjtime</ignore>
+  </syscheck>
+{% endif %}
+
+{% if wazuh.agent_config.enable_rootcheck %}
+  <rootcheck>
+    <disabled>no</disabled>
+    <frequency>43200</frequency>
+    <check_unixaudit>yes</check_unixaudit>
+    <check_files>yes</check_files>
+    <check_trojans>yes</check_trojans>
+    <check_dev>yes</check_dev>
+    <check_sys>yes</check_sys>
+    <check_pids>yes</check_pids>
+    <check_ports>yes</check_ports>
+    <check_if>yes</check_if>
+  </rootcheck>
+{% endif %}
+
+{% if wazuh.agent_config.enable_sca %}
+  <sca>
+    <enabled>yes</enabled>
+    <scan_on_start>yes</scan_on_start>
+    <interval>12h</interval>
+    <skip_nfs>yes</skip_nfs>
+  </sca>
+{% endif %}
+</ossec_config>

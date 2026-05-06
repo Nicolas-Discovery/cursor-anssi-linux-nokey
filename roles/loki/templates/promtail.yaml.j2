@@ -1,0 +1,51 @@
+# Managed by Ansible (loki role) - Promtail config shipping to {{ loki.url }}
+server:
+  http_listen_address: 127.0.0.1
+  http_listen_port: 9080
+  grpc_listen_address: 127.0.0.1
+  grpc_listen_port: 0
+
+positions:
+  filename: {{ loki.positions_file }}
+
+clients:
+  - url: "{{ loki.url }}"
+    tenant_id: "{{ loki.tenant_id }}"
+    basic_auth:
+      username: "{{ loki.basic_auth.username }}"
+      password: "{{ loki.basic_auth.password }}"
+    tls_config:
+      ca_file: "{{ loki.tls.ca_file }}"
+      insecure_skip_verify: {{ 'true' if loki.tls.insecure_skip_verify else 'false' }}
+    external_labels:
+{% for k, v in loki.external_labels.items() %}
+      {{ k }}: "{{ v }}"
+{% endfor %}
+      host: "{{ inventory_hostname }}"
+
+scrape_configs:
+{% for sc in loki.scrape_configs %}
+  - job_name: "{{ sc.job_name }}"
+{% if sc.type == 'journal' %}
+    journal:
+      max_age: {{ sc.max_age }}
+      json: true
+      labels:
+{% for k, v in sc.labels.items() %}
+        {{ k }}: "{{ v }}"
+{% endfor %}
+        host: "{{ inventory_hostname }}"
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        target_label: 'unit'
+{% elif sc.type == 'file' %}
+    static_configs:
+      - targets: [localhost]
+        labels:
+{% for k, v in sc.labels.items() %}
+          {{ k }}: "{{ v }}"
+{% endfor %}
+          host: "{{ inventory_hostname }}"
+          __path__: "{{ sc.paths[0] }}"
+{% endif %}
+{% endfor %}

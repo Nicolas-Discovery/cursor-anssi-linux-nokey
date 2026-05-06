@@ -1,0 +1,7 @@
+# Managed by Ansible (anssi_base role) - do not edit manually.
+# ANSSI BP-028 R6/R7 - Disable unused or risky kernel modules.
+
+{% for mod in anssi_base.blacklisted_modules %}
+install {{ mod }} /bin/true
+blacklist {{ mod }}
+{% endfor %}

@@ -1,0 +1,30 @@
+---
+- name: "AppArmor - ensure packages are present"
+  ansible.builtin.apt:
+    name:
+      - apparmor
+      - apparmor-utils
+      - apparmor-profiles
+      - apparmor-profiles-extra
+    state: present
+
+- name: "AppArmor - enable kernel parameter via GRUB drop-in"
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub.d/99-anssi.cfg
+    line: 'GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX apparmor=1 security=apparmor"'
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update grub
+
+- name: "AppArmor - enable and start service"
+  ansible.builtin.systemd:
+    name: apparmor
+    enabled: true
+    state: started
+
+- name: "AppArmor - enforce all available profiles"
+  ansible.builtin.command: aa-enforce /etc/apparmor.d/*
+  changed_when: false
+  failed_when: false

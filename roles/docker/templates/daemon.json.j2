@@ -1,0 +1,39 @@
+{
+  "data-root": "{{ docker.data_root }}",
+  "ipv6": {{ 'true' if docker.daemon.ipv6 else 'false' }},
+  "ip6tables": {{ 'true' if docker.daemon.ip6tables else 'false' }},
+{% if docker.daemon.fixed_cidr_v6 | length > 0 %}
+  "fixed-cidr-v6": "{{ docker.daemon.fixed_cidr_v6 }}",
+{% endif %}
+  "icc": {{ 'true' if docker.daemon.icc else 'false' }},
+  "userland-proxy": {{ 'true' if docker.daemon.userland_proxy else 'false' }},
+  "no-new-privileges": {{ 'true' if docker.daemon.no_new_privileges else 'false' }},
+  "live-restore": {{ 'true' if docker.daemon.live_restore else 'false' }},
+  "log-driver": "{{ docker.daemon.log_driver }}",
+  "log-opts": {
+{% set keys = docker.daemon.log_opts.keys() | list %}
+{% for k in keys %}
+    "{{ k }}": "{{ docker.daemon.log_opts[k] }}"{{ "," if not loop.last else "" }}
+{% endfor %}
+  },
+  "storage-driver": "{{ docker.daemon.storage_driver }}",
+{% if docker.daemon.userns_remap | length > 0 %}
+  "userns-remap": "{{ docker.daemon.userns_remap }}",
+{% endif %}
+  "experimental": {{ 'true' if docker.daemon.experimental else 'false' }},
+  "selinux-enabled": {{ 'true' if docker.daemon.selinux_enabled else 'false' }},
+  "seccomp-profile": "{{ docker.daemon.seccomp_profile }}",
+  "default-ulimits": {
+    "nofile": {
+      "Name": "{{ docker.daemon.default_ulimits.nofile.Name }}",
+      "Hard": {{ docker.daemon.default_ulimits.nofile.Hard }},
+      "Soft": {{ docker.daemon.default_ulimits.nofile.Soft }}
+    }
+  },
+  "mtu": {{ docker.daemon.mtu }},
+{% if docker.daemon.bridge | length > 0 %}
+  "bridge": "{{ docker.daemon.bridge }}",
+{% endif %}
+  "tls": {{ 'true' if docker.daemon.tls else 'false' }},
+  "tlsverify": {{ 'true' if docker.daemon.tlsverify else 'false' }}
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Managed by Ansible (anssi_base) - ANSSI BP-028 R12 - GRUB superuser password
+cat <<EOF
+set superusers="{{ anssi_base.grub_superuser }}"
+password_pbkdf2 {{ anssi_base.grub_superuser }} {{ anssi_base.grub_password_pbkdf2 }}
+EOF

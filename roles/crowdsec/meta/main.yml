@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: crowdsec
+  author: anssi-bp028-stack
+  description: CrowdSec engine + firewall bouncer with enrolment and GeoIP profile.
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Debian
+      versions: [trixie]
+dependencies: []

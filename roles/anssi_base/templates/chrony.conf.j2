@@ -1,0 +1,14 @@
+# Managed by Ansible (anssi_base) - ANSSI BP-028 R20
+{% for srv in anssi_base.chrony_servers %}
+server {{ srv }}
+{% endfor %}
+
+driftfile /var/lib/chrony/chrony.drift
+makestep 1.0 3
+rtcsync
+keyfile /etc/chrony/chrony.keys
+leapsectz right/UTC
+logdir /var/log/chrony
+log measurements statistics tracking
+maxupdateskew 100.0
+ntsdumpdir /var/lib/chrony

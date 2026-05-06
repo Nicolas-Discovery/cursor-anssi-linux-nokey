@@ -1,0 +1,94 @@
+#!/usr/sbin/nft -f
+# Managed by Ansible (nftables role) - ANSSI BP-028 R44/R45 - IPv4 + IPv6.
+#
+# Decision flow (input chain):
+#   1. Loopback / established / related        -> ACCEPT
+#   2. Static IP blacklist (v4+v6)             -> DROP (highest priority)
+#   3. Static IP whitelist (v4+v6)             -> ACCEPT (skip GeoIP)
+#   4. GeoIP "blocked countries" set           -> DROP (overrides continent allow)
+#   5. GeoIP "allowed continents+countries"    -> ACCEPT only the published services
+#   6. Default                                 -> DROP
+
+flush ruleset
+
+table inet filter {
+
+    # ---------- sets: merged from /etc/nftables.d/*.conf ---------------------
+    include "/etc/nftables.d/10-static.conf"
+{% if nftables.geoip.enabled %}
+    include "/etc/nftables.d/20-geoip-v4.conf"
+    include "/etc/nftables.d/20-geoip-v6.conf"
+    include "/etc/nftables.d/21-geoip-blocked-v4.conf"
+    include "/etc/nftables.d/21-geoip-blocked-v6.conf"
+{% endif %}
+
+    # ---------- INPUT chain --------------------------------------------------
+    chain input {
+        type filter hook input priority filter; policy {{ nftables.default_policy_input }};
+
+        # Stateful baseline
+        ct state invalid drop
+        ct state established,related accept
+        iif lo accept
+
+        # 1. Static blacklist
+        ip  saddr @ip_blacklist_v4 log prefix "[nft-blacklist4] " level info drop
+        ip6 saddr @ip_blacklist_v6 log prefix "[nft-blacklist6] " level info drop
+
+        # 2. Static whitelist (bypass GeoIP)
+        ip  saddr @ip_whitelist_v4 accept
+        ip6 saddr @ip_whitelist_v6 accept
+
+{% if nftables.allow_icmpv4 %}
+        # 3. ICMP / ICMPv6 controlled (PMTUD, ping, NDP)
+        ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-request } limit rate 5/second burst 10 packets accept
+{% endif %}
+{% if nftables.allow_icmpv6 %}
+        ip6 nexthdr icmpv6 icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, mld-listener-query, mld-listener-report, mld-listener-done, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, nd-redirect, echo-request, echo-reply } accept
+{% endif %}
+
+{% if nftables.geoip.enabled %}
+        # 4. GeoIP override: blocked countries always drop
+        ip  saddr @geoip_block_v4 log prefix "[nft-geo-block4] " level info drop
+        ip6 saddr @geoip_block_v6 log prefix "[nft-geo-block6] " level info drop
+
+        # 5. GeoIP allow set must match before opening services
+        ip  saddr @geoip_allow_v4 jump services_v4
+        ip6 saddr @geoip_allow_v6 jump services_v6
+{% else %}
+        jump services_v4
+        jump services_v6
+{% endif %}
+
+        # 6. Catch-all
+        log prefix "[nft-default-drop] " level info limit rate 10/second
+        counter drop
+    }
+
+    # ---------- service openings (called from input) -------------------------
+    chain services_v4 {
+{% for svc in nftables.allowed_services %}
+        meta nfproto ipv4 {{ svc.proto }} dport {{ svc.port }} ct state new accept comment "{{ svc.comment }}"
+{% endfor %}
+    }
+
+    chain services_v6 {
+{% for svc in nftables.allowed_services %}
+        meta nfproto ipv6 {{ svc.proto }} dport {{ svc.port }} ct state new accept comment "{{ svc.comment }}"
+{% endfor %}
+    }
+
+    # ---------- FORWARD ------------------------------------------------------
+    chain forward {
+        type filter hook forward priority filter; policy {{ nftables.default_policy_forward }};
+    }
+
+    # ---------- OUTPUT -------------------------------------------------------
+    chain output {
+        type filter hook output priority filter; policy {{ nftables.default_policy_output }};
+
+        ct state invalid drop
+        ct state established,related accept
+        oif lo accept
+    }
+}

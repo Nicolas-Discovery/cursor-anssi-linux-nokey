@@ -1,0 +1,52 @@
+---
+- name: "PAM - configure pwquality"
+  ansible.builtin.template:
+    src: pwquality.conf.j2
+    dest: /etc/security/pwquality.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "PAM - common-password (passwords + history + yescrypt)"
+  ansible.builtin.template:
+    src: common-password.j2
+    dest: /etc/pam.d/common-password
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: "PAM - common-auth (faillock)"
+  ansible.builtin.template:
+    src: common-auth.j2
+    dest: /etc/pam.d/common-auth
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: "PAM - common-account (faillock authfail check)"
+  ansible.builtin.template:
+    src: common-account.j2
+    dest: /etc/pam.d/common-account
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: "PAM - common-session (umask + tmp dir)"
+  ansible.builtin.template:
+    src: common-session.j2
+    dest: /etc/pam.d/common-session
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+- name: "PAM - faillock config"
+  ansible.builtin.template:
+    src: faillock.conf.j2
+    dest: /etc/security/faillock.conf
+    owner: root
+    group: root
+    mode: "0644"
