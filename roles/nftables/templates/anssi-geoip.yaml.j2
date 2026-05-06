@@ -1,0 +1,25 @@
+# Managed by Ansible (nftables role) - consumed by /usr/local/sbin/anssi-geoip-update
+provider: "{{ nftables.geoip.provider }}"
+base_url_v4: "{{ nftables.geoip.base_url_v4 }}"
+base_url_v6: "{{ nftables.geoip.base_url_v6 }}"
+cache_dir: "{{ nftables.geoip.cache_dir }}"
+
+allowed_continents:
+{% for c in nftables.geoip.allowed_continents %}
+  - "{{ c | upper }}"
+{% endfor %}
+
+allowed_countries:
+{% for c in nftables.geoip.allowed_countries %}
+  - "{{ c | lower }}"
+{% endfor %}
+
+blocked_countries:
+{% for c in nftables.geoip.blocked_countries %}
+  - "{{ c | lower }}"
+{% endfor %}
+
+output_v4: /etc/nftables.d/20-geoip-v4.conf
+output_v6: /etc/nftables.d/20-geoip-v6.conf
+output_blocked_v4: /etc/nftables.d/21-geoip-blocked-v4.conf
+output_blocked_v6: /etc/nftables.d/21-geoip-blocked-v6.conf

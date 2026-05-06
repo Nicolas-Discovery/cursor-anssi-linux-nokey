@@ -1,0 +1,26 @@
+[Unit]
+Description=ANSSI GeoIP nftables sets refresher
+Wants=network-online.target
+After=network-online.target nftables.service
+ConditionPathExists=/etc/anssi-geoip.yaml
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/anssi-geoip-update --apply
+TimeoutStartSec=15min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths={{ nftables.geoip.cache_dir }} /etc/nftables.d /var/lib/anssi-nftables
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @network-io
+SystemCallFilter=~@privileged @resources

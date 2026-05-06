@@ -1,0 +1,94 @@
+---
+- name: "Nftables - install"
+  ansible.builtin.apt:
+    name:
+      - nftables
+      - python3-requests
+      - python3-yaml
+    state: present
+
+- name: "Nftables - directories for GeoIP cache + generated includes"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ nftables.geoip.cache_dir }}"
+    - /etc/nftables.d
+    - /var/lib/anssi-nftables
+
+- name: "Nftables - install the GeoIP refresher script"
+  ansible.builtin.copy:
+    src: anssi-geoip-update.py
+    dest: /usr/local/sbin/anssi-geoip-update
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: "Nftables - install the static IP whitelist/blacklist include"
+  ansible.builtin.template:
+    src: nft-include-static.conf.j2
+    dest: /etc/nftables.d/10-static.conf
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Reload nftables
+
+- name: "Nftables - install the GeoIP runtime config (consumed by the script)"
+  ansible.builtin.template:
+    src: anssi-geoip.yaml.j2
+    dest: /etc/anssi-geoip.yaml
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: "Nftables - run the GeoIP refresher once now to populate the sets"
+  ansible.builtin.command: /usr/local/sbin/anssi-geoip-update --apply
+  when: nftables.geoip.enabled | bool
+  changed_when: true
+  register: nftables_geoip_run
+  failed_when:
+    - nftables_geoip_run.rc != 0
+    - "'no network' not in (nftables_geoip_run.stderr | default(''))"
+
+- name: "Nftables - install the systemd refresher unit"
+  ansible.builtin.template:
+    src: anssi-geoip-update.service.j2
+    dest: /etc/systemd/system/anssi-geoip-update.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "Nftables - install the systemd refresher timer"
+  ansible.builtin.template:
+    src: anssi-geoip-update.timer.j2
+    dest: /etc/systemd/system/anssi-geoip-update.timer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "Nftables - enable the refresher timer"
+  ansible.builtin.systemd:
+    name: anssi-geoip-update.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: nftables.geoip.enabled | bool
+
+- name: "Nftables - deploy the master ruleset"
+  ansible.builtin.template:
+    src: nftables.conf.j2
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: "0640"
+    validate: "nft -c -f %s"
+  notify: Reload nftables
+
+- name: "Nftables - enable and start the service"
+  ansible.builtin.systemd:
+    name: nftables
+    enabled: true
+    state: started
