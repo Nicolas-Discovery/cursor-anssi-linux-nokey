@@ -1,0 +1,17 @@
+# Managed by Ansible (anssi_base role) - do not edit manually.
+# ANSSI BP-028 v2.0 - kernel and network sysctl hardening.
+
+# --- Kernel ------------------------------------------------------------------
+{% for k, v in anssi_base.sysctl_kernel.items() %}
+{{ k }} = {{ v }}
+{% endfor %}
+
+# --- IPv4 --------------------------------------------------------------------
+{% for k, v in anssi_base.sysctl_ipv4.items() %}
+{{ k }} = {{ v }}
+{% endfor %}
+
+# --- IPv6 (kept ENABLED, but hardened) ---------------------------------------
+{% for k, v in anssi_base.sysctl_ipv6.items() %}
+{{ k }} = {{ v }}
+{% endfor %}

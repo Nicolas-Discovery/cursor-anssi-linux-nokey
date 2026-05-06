@@ -1,0 +1,9 @@
+---
+- name: "Sudo - deploy ANSSI sudoers fragment"
+  ansible.builtin.template:
+    src: sudoers-anssi.j2
+    dest: /etc/sudoers.d/00-anssi-hardening
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "/usr/sbin/visudo -cf %s"

@@ -1,0 +1,6 @@
+# Managed by Ansible (anssi_base) - ANSSI BP-028 R5/R8
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX {{ anssi_base.grub_cmdline_extra | join(' ') }}"
+GRUB_DISABLE_RECOVERY="true"
+GRUB_DISABLE_SUBMENU="y"
+GRUB_TIMEOUT=2
+GRUB_TIMEOUT_STYLE=hidden

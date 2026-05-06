@@ -1,0 +1,33 @@
+---
+- name: "APT - update cache"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: "APT - install required ANSSI baseline packages"
+  ansible.builtin.apt:
+    name: "{{ anssi_base.required_packages }}"
+    state: present
+    install_recommends: false
+
+- name: "APT - purge forbidden / risky packages"
+  ansible.builtin.apt:
+    name: "{{ anssi_base.forbidden_packages }}"
+    state: absent
+    purge: true
+
+- name: "APT - configure APT to use only signed and HTTPS repositories"
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99-anssi-hardening
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      // Managed by Ansible (anssi_base role) - do not edit manually.
+      APT::Get::AllowUnauthenticated "false";
+      Acquire::AllowInsecureRepositories "false";
+      Acquire::AllowDowngradeToInsecureRepositories "false";
+      APT::Install-Recommends "false";
+      APT::Install-Suggests   "false";
+      APT::Sandbox::Seccomp   "true";
+      APT::Periodic::Update-Package-Lists "1";

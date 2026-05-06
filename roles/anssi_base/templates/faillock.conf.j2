@@ -1,0 +1,10 @@
+# Managed by Ansible (anssi_base) - ANSSI BP-028 R31
+deny           = {{ anssi_base.pam.faillock.deny }}
+unlock_time    = {{ anssi_base.pam.faillock.unlock_time }}
+fail_interval  = {{ anssi_base.pam.faillock.fail_interval }}
+{% if anssi_base.pam.faillock.even_deny_root %}even_deny_root{% endif %}
+
+{% if anssi_base.pam.faillock.audit %}audit{% endif %}
+
+silent
+dir = /var/run/faillock

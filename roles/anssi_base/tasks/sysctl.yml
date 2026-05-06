@@ -1,0 +1,13 @@
+---
+- name: "Sysctl - deploy ANSSI hardening file"
+  ansible.builtin.template:
+    src: sysctl-anssi.conf.j2
+    dest: /etc/sysctl.d/90-anssi.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sysctl
+
+- name: "Sysctl - apply now"
+  ansible.builtin.command: sysctl --system
+  changed_when: false

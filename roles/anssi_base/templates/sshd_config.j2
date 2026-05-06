@@ -1,0 +1,64 @@
+# Managed by Ansible (anssi_base) - ANSSI BP-028 R55-R63 - Debian 13
+# Authentication: PASSWORD + TOTP (no SSH key authentication).
+
+Port {{ anssi_base.ssh.port }}
+{% for addr in anssi_base.ssh.listen_addresses %}
+ListenAddress {{ addr }}
+{% endfor %}
+
+Protocol 2
+AddressFamily any
+
+# --- Crypto (R56 / R57) -------------------------------------------------------
+KexAlgorithms {{ anssi_base.ssh.kex_algorithms | join(',') }}
+Ciphers {{ anssi_base.ssh.ciphers | join(',') }}
+MACs {{ anssi_base.ssh.macs | join(',') }}
+HostKeyAlgorithms {{ anssi_base.ssh.host_key_algorithms | join(',') }}
+PubkeyAcceptedAlgorithms {{ anssi_base.ssh.host_key_algorithms | join(',') }}
+
+# --- Host keys (no DSA / ECDSA) ----------------------------------------------
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+# --- Authentication -----------------------------------------------------------
+PermitRootLogin {{ anssi_base.ssh.permit_root_login }}
+PasswordAuthentication {{ 'yes' if anssi_base.ssh.password_authentication else 'no' }}
+PubkeyAuthentication {{ 'yes' if anssi_base.ssh.pubkey_authentication else 'no' }}
+KbdInteractiveAuthentication {{ 'yes' if anssi_base.ssh.kbd_interactive_authentication else 'no' }}
+ChallengeResponseAuthentication {{ 'yes' if anssi_base.ssh.challenge_response_authentication else 'no' }}
+UsePAM {{ 'yes' if anssi_base.ssh.use_pam else 'no' }}
+AuthenticationMethods {{ anssi_base.ssh.authentication_methods }}
+PermitEmptyPasswords {{ 'yes' if anssi_base.ssh.permit_empty_passwords else 'no' }}
+HostbasedAuthentication {{ 'yes' if anssi_base.ssh.hostbased_authentication else 'no' }}
+IgnoreRhosts {{ 'yes' if anssi_base.ssh.ignore_rhosts else 'no' }}
+StrictModes {{ 'yes' if anssi_base.ssh.strict_modes else 'no' }}
+
+# --- Sessions -----------------------------------------------------------------
+MaxAuthTries {{ anssi_base.ssh.max_auth_tries }}
+MaxSessions {{ anssi_base.ssh.max_sessions }}
+LoginGraceTime {{ anssi_base.ssh.login_grace_time }}
+ClientAliveInterval {{ anssi_base.ssh.client_alive_interval }}
+ClientAliveCountMax {{ anssi_base.ssh.client_alive_count_max }}
+LogLevel {{ anssi_base.ssh.log_level }}
+UseDNS {{ 'yes' if anssi_base.ssh.use_dns else 'no' }}
+
+# --- Forwarding & misc --------------------------------------------------------
+X11Forwarding {{ 'yes' if anssi_base.ssh.x11_forwarding else 'no' }}
+AllowTcpForwarding {{ 'yes' if anssi_base.ssh.allow_tcp_forwarding else 'no' }}
+AllowAgentForwarding {{ 'yes' if anssi_base.ssh.allow_agent_forwarding else 'no' }}
+PermitUserEnvironment {{ 'yes' if anssi_base.ssh.permit_user_environment else 'no' }}
+PrintMotd {{ 'yes' if anssi_base.ssh.print_motd else 'no' }}
+Banner {{ anssi_base.ssh.banner }}
+
+# --- Allow / Deny lists -------------------------------------------------------
+{% if anssi_base.ssh.allow_groups %}
+AllowGroups {{ anssi_base.ssh.allow_groups | join(' ') }}
+{% endif %}
+{% if anssi_base.ssh.allow_users %}
+AllowUsers {{ anssi_base.ssh.allow_users | join(' ') }}
+{% endif %}
+{% if anssi_base.ssh.deny_users %}
+DenyUsers {{ anssi_base.ssh.deny_users | join(' ') }}
+{% endif %}
+
+Subsystem sftp internal-sftp

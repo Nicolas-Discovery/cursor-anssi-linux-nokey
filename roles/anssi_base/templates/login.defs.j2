@@ -1,0 +1,28 @@
+# Managed by Ansible (anssi_base role) - ANSSI BP-028 v2.0
+PASS_MAX_DAYS   {{ anssi_base.pam.login_defs.pass_max_days }}
+PASS_MIN_DAYS   {{ anssi_base.pam.login_defs.pass_min_days }}
+PASS_WARN_AGE   {{ anssi_base.pam.login_defs.pass_warn_age }}
+LOGIN_RETRIES   {{ anssi_base.pam.login_defs.login_retries }}
+LOGIN_TIMEOUT   {{ anssi_base.pam.login_defs.login_timeout }}
+UMASK           {{ anssi_base.pam.login_defs.umask }}
+ENCRYPT_METHOD  {{ anssi_base.pam.login_defs.encrypt_method }}
+SHA_CRYPT_MIN_ROUNDS  {{ anssi_base.pam.login_defs.sha_crypt_min_rounds }}
+SHA_CRYPT_MAX_ROUNDS  {{ anssi_base.pam.login_defs.sha_crypt_max_rounds }}
+
+UID_MIN          1000
+UID_MAX         60000
+GID_MIN          1000
+GID_MAX         60000
+
+SYS_UID_MIN       100
+SYS_UID_MAX       999
+SYS_GID_MIN       100
+SYS_GID_MAX       999
+
+CREATE_HOME     yes
+USERGROUPS_ENAB yes
+HOME_MODE       0750
+SU_NAME         su
+DEFAULT_HOME    no
+ENV_PATH        PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
+ENV_SUPATH      PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

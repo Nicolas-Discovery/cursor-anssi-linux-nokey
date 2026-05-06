@@ -1,0 +1,44 @@
+---
+- name: "SSH - deploy hardened sshd_config"
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: Restart sshd
+
+- name: "SSH - remove weak host keys (DSA, ECDSA)"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/ssh/ssh_host_dsa_key
+    - /etc/ssh/ssh_host_dsa_key.pub
+    - /etc/ssh/ssh_host_ecdsa_key
+    - /etc/ssh/ssh_host_ecdsa_key.pub
+  notify: Restart sshd
+
+- name: "SSH - generate ed25519 host key if missing"
+  ansible.builtin.command:
+    cmd: ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" -C "{{ inventory_hostname }}"
+    creates: /etc/ssh/ssh_host_ed25519_key
+  notify: Restart sshd
+
+- name: "SSH - generate strong RSA host key if missing"
+  ansible.builtin.command:
+    cmd: ssh-keygen -t rsa -b 4096 -f /etc/ssh/ssh_host_rsa_key -N "" -C "{{ inventory_hostname }}"
+    creates: /etc/ssh/ssh_host_rsa_key
+  notify: Restart sshd
+
+- name: "SSH - drop diffie-hellman moduli below 3072 bits (R57)"
+  ansible.builtin.shell: |
+    set -o pipefail
+    awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.strong \
+      && mv /etc/ssh/moduli.strong /etc/ssh/moduli
+  args:
+    executable: /bin/bash
+  changed_when: false
+  failed_when: false

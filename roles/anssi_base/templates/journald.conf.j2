@@ -1,0 +1,11 @@
+# Managed by Ansible (anssi_base) - ANSSI BP-028 logging
+[Journal]
+Storage={{ anssi_base.journald.storage }}
+Compress={{ 'yes' if anssi_base.journald.compress else 'no' }}
+ForwardToSyslog={{ 'yes' if anssi_base.journald.forward_to_syslog else 'no' }}
+Seal={{ 'yes' if anssi_base.journald.seal else 'no' }}
+SystemMaxUse={{ anssi_base.journald.max_use }}
+MaxFileSec={{ anssi_base.journald.max_file_sec }}
+MaxRetentionSec={{ anssi_base.journald.max_retention_sec }}
+RateLimitBurst=10000
+RateLimitIntervalSec=30s

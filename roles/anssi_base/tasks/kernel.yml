@@ -1,0 +1,14 @@
+---
+- name: "Kernel - blacklist unused / dangerous modules"
+  ansible.builtin.template:
+    src: modprobe-anssi-blacklist.conf.j2
+    dest: /etc/modprobe.d/anssi-blacklist.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Update initramfs
+
+- name: "Kernel - disable kernel module loading at runtime is NOT done (we keep modprobe usable, but we restrict via lockdown=confidentiality on the cmdline)"
+  ansible.builtin.debug:
+    msg: "kernel.modules_disabled is left at 0; lockdown=confidentiality is enforced via GRUB cmdline."
+  changed_when: false

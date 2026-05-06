@@ -1,0 +1,24 @@
+# Managed by Ansible (anssi_base) - PAM stack for SSH on Debian 13.
+# 2FA chain: password (pam_unix) + TOTP (pam_google_authenticator).
+
+# --- Authentication chain (order matters!) -----------------------------------
+# 1. Lockout pre-check
+auth        required     pam_faillock.so preauth
+# 2. First factor: UNIX password
+auth        [success=1 default=ignore]   pam_unix.so
+auth        [default=die] pam_faillock.so authfail
+# 3. Second factor: TOTP
+auth        required     pam_google_authenticator.so {% if not anssi_base.twofa.nullok %}{% else %}nullok {% endif %}forward_pass echo_verification_code
+
+# --- Standard Debian includes ------------------------------------------------
+@include common-account
+@include common-session
+@include common-password
+
+# --- Other standard items ----------------------------------------------------
+session    required     pam_loginuid.so
+session    optional     pam_motd.so motd=/run/motd.dynamic
+session    optional     pam_motd.so noupdate
+session    optional     pam_mail.so standard noenv
+session    required     pam_limits.so
+session    required     pam_env.so

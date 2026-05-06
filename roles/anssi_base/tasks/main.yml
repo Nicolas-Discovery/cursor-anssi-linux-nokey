@@ -1,0 +1,83 @@
+---
+- name: "Assert role is targeting a supported Debian release"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Debian'
+      - ansible_facts['distribution'] == target_distribution
+      - ansible_facts['distribution_major_version'] == target_distribution_major
+    fail_msg: >-
+      This stack only supports {{ target_distribution }} {{ target_distribution_major }}
+      ({{ target_distribution_release }}). Detected: {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] }}.
+
+- name: "Set hostname facts (used by templates)"
+  ansible.builtin.set_fact:
+    anssi_base_real_hostname: "{{ ansible_facts['hostname'] }}"
+    anssi_base_real_fqdn: "{{ ansible_facts['fqdn'] }}"
+
+- name: "Include - APT packages baseline"
+  ansible.builtin.import_tasks: packages.yml
+  tags: [anssi, packages]
+
+- name: "Include - kernel module blacklist"
+  ansible.builtin.import_tasks: kernel.yml
+  tags: [anssi, kernel]
+
+- name: "Include - sysctl hardening (kernel, IPv4, IPv6)"
+  ansible.builtin.import_tasks: sysctl.yml
+  tags: [anssi, sysctl]
+
+- name: "Include - filesystem mount hardening"
+  ansible.builtin.import_tasks: filesystem.yml
+  tags: [anssi, filesystem]
+
+- name: "Include - users and login.defs"
+  ansible.builtin.import_tasks: users.yml
+  tags: [anssi, users]
+
+- name: "Include - PAM (pwquality, faillock, common-*)"
+  ansible.builtin.import_tasks: pam.yml
+  tags: [anssi, pam]
+
+- name: "Include - SSH server hardening"
+  ansible.builtin.import_tasks: ssh.yml
+  tags: [anssi, ssh]
+
+- name: "Include - SSH 2FA (TOTP) chain"
+  ansible.builtin.import_tasks: twofa.yml
+  when: anssi_base.twofa.enabled | bool
+  tags: [anssi, ssh, 2fa]
+
+- name: "Include - sudo hardening"
+  ansible.builtin.import_tasks: sudo.yml
+  tags: [anssi, sudo]
+
+- name: "Include - auditd configuration and rules"
+  ansible.builtin.import_tasks: audit.yml
+  tags: [anssi, audit]
+
+- name: "Include - AppArmor enforcement"
+  ansible.builtin.import_tasks: apparmor.yml
+  when: anssi_base.apparmor_enabled | bool
+  tags: [anssi, apparmor]
+
+- name: "Include - systemd services hardening + journald"
+  ansible.builtin.import_tasks: services.yml
+  tags: [anssi, services]
+
+- name: "Include - time synchronisation (chrony)"
+  ansible.builtin.import_tasks: time.yml
+  tags: [anssi, time]
+
+- name: "Include - unattended-upgrades"
+  ansible.builtin.import_tasks: updates.yml
+  when: anssi_base.unattended_upgrades.enabled | bool
+  tags: [anssi, updates]
+
+- name: "Include - login banner"
+  ansible.builtin.import_tasks: banner.yml
+  tags: [anssi, banner]
+
+- name: "Include - GRUB hardening"
+  ansible.builtin.import_tasks: grub.yml
+  tags: [anssi, grub]

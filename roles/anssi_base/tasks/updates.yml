@@ -1,0 +1,28 @@
+---
+- name: "Unattended-upgrades - install"
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+
+- name: "Unattended-upgrades - enable periodic updates"
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      // Managed by Ansible (anssi_base) - ANSSI BP-028 R5
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade   "1";
+      APT::Periodic::AutocleanInterval    "7";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+
+- name: "Unattended-upgrades - main config"
+  ansible.builtin.template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
