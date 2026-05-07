@@ -19,7 +19,8 @@ disabled), **Loki / Promtail** log shipping, and **Wazuh** agent enrolment.
 ```
 .
 ├── ansible.cfg                       # Disables key auth, forces password+TOTP
-├── requirements.yml                  # Ansible collections (ansible.posix etc.)
+├── controller-requirements.txt       # Python deps for the controller (ansible-core, lint)
+├── requirements.yml                  # Ansible Galaxy collection (ansible.posix)
 ├── inventory/
 │   ├── hosts.yml.example
 │   └── secrets.vault.yml.example
@@ -38,35 +39,42 @@ disabled), **Loki / Promtail** log shipping, and **Wazuh** agent enrolment.
 
 ## 2. Supported controller versions
 
-| Component     | Version range                             | Notes |
-| ------------- | ----------------------------------------- | ----- |
-| `ansible-core`  | `>= 2.15, <= 2.18`                      | 2.14 also works but is EOL since Nov 2023; upgrade if possible. |
-| `ansible.posix` | `>= 1.5.4, < 2.0.0` (pinned)            | 2.x requires `ansible-core >= 2.16`; 1.x is broader. |
-| `community.general` | `>= 8.0.0, < 10.0.0` (pinned)       | 12.0.0 removed the `yaml` callback we used to depend on. |
+| Component       | Version range                          | Notes |
+| --------------- | -------------------------------------- | ----- |
+| Python          | `>= 3.10`                              | Required by `ansible-core` 2.16+. |
+| `ansible-core`  | `>= 2.16, < 2.21` (pinned via pip)     | 2.16/2.17/2.18/2.19/2.20 LTS line. 2.14 / 2.15 are EOL and no longer tested. |
+| `ansible.posix` | `>= 2.0.0, < 3.0.0` (pinned in `requirements.yml`) | Provides `ansible.posix.mount` plus the `profile_tasks` / `timer` callbacks. |
 
-The `ansible.cfg` shipped here uses `stdout_callback = ansible.builtin.default`
-with `result_format = yaml` — the supported replacement for the removed
-`community.general.yaml` callback (available in `ansible-core >= 2.13`).
+The stack does **not** depend on `community.general`. The previous
+`community.general.yaml` callback has been replaced by the built-in
+`ansible.builtin.default` callback with `callback_result_format = yaml`
+(available since `ansible-core` 2.13).
 
 ## 3. Quick start
 
 ```bash
-# 1. Install dependencies on the controller
+# 1. Create a dedicated controller virtualenv and install ansible-core + lint
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -U pip
+pip install -r controller-requirements.txt
+
+# 2. Install the pinned collection
 ansible-galaxy collection install -r requirements.yml --force
 
-# 2. Customise inventory
+# 3. Customise inventory
 cp inventory/hosts.yml.example inventory/hosts.yml
 $EDITOR inventory/hosts.yml
 
-# 3. Encrypt secrets (vault)
+# 4. Encrypt secrets (vault)
 cp inventory/secrets.vault.yml.example inventory/secrets.vault.yml
 $EDITOR inventory/secrets.vault.yml
 ansible-vault encrypt inventory/secrets.vault.yml
 
-# 4. Review the single variable file
+# 5. Review the single variable file
 $EDITOR group_vars/all.yml
 
-# 5. Run
+# 6. Run
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
   --ask-pass --ask-become-pass \
   -e @inventory/secrets.vault.yml --ask-vault-pass

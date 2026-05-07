@@ -5,7 +5,7 @@ galaxy_info:
   description: >
     nftables firewall (IPv4 + IPv6) with GeoIP continent/country/whitelist logic.
   license: MIT
-  min_ansible_version: "2.15"
+  min_ansible_version: "2.16"
   platforms:
     - name: Debian
       versions: [trixie]

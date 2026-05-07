@@ -6,7 +6,7 @@ galaxy_info:
     ANSSI BP-028 v2.0 baseline hardening for Debian 13 (Trixie).
     Profile "élevé/critique". Password + TOTP authentication.
   license: MIT
-  min_ansible_version: "2.15"
+  min_ansible_version: "2.16"
   platforms:
     - name: Debian
       versions:

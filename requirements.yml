@@ -1,16 +1,14 @@
 ---
-# These pins are intentionally narrow:
-#   * ansible.posix 2.x requires ansible-core >= 2.16 and drops support for
-#     older controllers; we cap to 1.x so the stack still installs cleanly
-#     on ansible-core 2.14/2.15 (warning-free) while remaining usable on
-#     ansible-core 2.16/2.17.
-#   * community.general 12.0.0 removed the `community.general.yaml`
-#     callback and dropped support for older controllers; we cap to 9.x
-#     so both the callbacks we rely on and ansible-core 2.14+ remain
-#     supported. The `result_format = yaml` option of ansible.builtin.default
-#     (set in ansible.cfg) supersedes the removed `yaml` callback anyway.
+# Ansible Galaxy collection requirements.
+#
+# Compatible with ansible-core >= 2.16 (LTS: 2.16, 2.17, 2.18, 2.19, 2.20).
+# `ansible.posix` 2.x is the modern line; it requires ansible-core >= 2.16.
+# We do NOT depend on community.general anywhere in this stack:
+#   * the `mount` task uses ansible.posix.mount;
+#   * the runtime callbacks (`profile_tasks`, `timer`) live in ansible.posix
+#     since the move from community.general; the obsolete `yaml` callback
+#     has been replaced by ansible-core's `default` callback with
+#     `callback_result_format = yaml` (see ansible.cfg).
 collections:
   - name: ansible.posix
-    version: ">=1.5.4,<2.0.0"
-  - name: community.general
-    version: ">=8.0.0,<10.0.0"
+    version: ">=2.0.0,<3.0.0"
