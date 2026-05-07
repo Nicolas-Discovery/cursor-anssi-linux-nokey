@@ -19,6 +19,14 @@
     state: stopped
   failed_when: false
 
+- name: "Journald - ensure drop-in directory exists"
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: "Journald - deploy hardened config"
   ansible.builtin.template:
     src: journald.conf.j2
@@ -27,11 +35,3 @@
     group: root
     mode: "0644"
   notify: Restart journald
-
-- name: "Journald - ensure drop-in directory exists"
-  ansible.builtin.file:
-    path: /etc/systemd/journald.conf.d
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
