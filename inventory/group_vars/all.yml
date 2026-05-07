@@ -332,7 +332,22 @@ anssi_base:
     banner: "/etc/issue.net"
     allow_groups:
       - "ssh-users"
+    # If you use only AllowGroups (default) and do NOT set allow_from_any_address
+    # nor user_allow_from_addresses below, AllowUsers is omitted (any member of
+    # allow_groups may connect from anywhere subject to nftables).
     allow_users: []
+    # When either list below is non-empty, sshd sets AllowUsers with patterns
+    # user@CIDR (see sshd_config(5)); EVERY account that must SSH in must be
+    # listed — typically ansadmin@* plus per-user CIDR rows.
+    allow_from_any_address:
+      - ansadmin
+    user_allow_from_addresses:
+      superbis:
+        - "10.0.0.0/8"                 # REPLACE: IPv4 CIDRs allowed for user superbis
+        - "[2001:db8:1000::]/64"       # IPv6: use [addr]/len so AllowUsers becomes user@[addr]/len
+    # PAM skips google_authenticator for these accounts (password only over SSH).
+    totp_exempt_users:
+      - superbis
     deny_users:
       - "root"
     # Hardened crypto (R56 / R57).
@@ -355,6 +370,13 @@ anssi_base:
       - "rsa-sha2-256"
 
   # 2FA / TOTP (Google Authenticator PAM module).
+  # Provision a secret for each account in enforced_users (not in totp_exempt_users),
+  # run ON THE HOST as that Linux user, BEFORE enforcing this playbook:
+  #
+  #   google-authenticator -t -d -f -r 3 30 -W -e 5 -i "ANSSI-CRITICAL"
+  #   chmod 0400 ~/.google_authenticator
+  #
+  # (-r 3 30 must match anssi_base.twofa.rate_limit; -i matches twofa.issuer.)
   twofa:
     enabled: true
     enforce_on_console: false        # only enforce TOTP on remote SSH
@@ -379,6 +401,10 @@ anssi_base:
       # Password must be provided via Ansible Vault as 'ansadmin_password_hash'
       # (yescrypt or sha512crypt). Empty => account stays locked.
       password_hash_var: "ansadmin_password_hash"
+  # Existing local accounts (already on the host) appended to admin_group so
+  # AllowGroups ssh-users matches. Does NOT create the user or set password.
+  existing_users_add_to_ssh_group:
+    - superbis
   lock_root_account: true
   disable_root_login: true
 

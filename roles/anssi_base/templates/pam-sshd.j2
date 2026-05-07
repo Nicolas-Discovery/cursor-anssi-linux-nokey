@@ -7,7 +7,11 @@ auth        required     pam_faillock.so preauth
 # 2. First factor: UNIX password
 auth        [success=1 default=ignore]   pam_unix.so
 auth        [default=die] pam_faillock.so authfail
-# 3. Second factor: TOTP
+{% for u in anssi_base.ssh.totp_exempt_users | default([]) %}
+# TOTP bypass for single-user break-glass / automation (still subject to AllowUsers / firewall).
+auth        sufficient   pam_succeed_if.so user = {{ u }}
+{% endfor %}
+# Second factor: TOTP (skipped when pam_succeed_if above matched)
 auth        required     pam_google_authenticator.so {% if not anssi_base.twofa.nullok %}{% else %}nullok {% endif %}forward_pass echo_verification_code
 
 # --- Standard Debian includes ------------------------------------------------

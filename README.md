@@ -107,6 +107,33 @@ Every option of every role lives in this file, organised in eight sections:
 | 7. Loki | Promtail binary version + URL, basic auth, TLS, scrape jobs |
 | 8. Wazuh | Manager address + port, enrolment via authd password, agent options |
 
+**Additional SSH-related keys** (under `anssi_base.ssh` unless noted):
+
+| Key | Purpose |
+| --- | --- |
+| `ssh.allow_from_any_address` | Users allowed as `user@*` in `AllowUsers` (required once you use IP-scoped users). |
+| `ssh.user_allow_from_addresses` | Map `username → [ CIDR, … ]` → `AllowUsers user@CIDR`. IPv6: use `[addr]/len`. |
+| `ssh.totp_exempt_users` | PAM skips TOTP; password-only SSH (still subject to `AllowUsers` / firewall). |
+| `existing_users_add_to_ssh_group` | Existing POSIX accounts appended to `ssh-users` via `usermod -aG` (user must already exist). |
+
+**TOTP provisioning** (run on the host as each *non-exempt* user, before enforcing the role):
+
+```bash
+google-authenticator -t -d -f -r 3 30 -W -e 5 -i "ANSSI-CRITICAL"
+chmod 0400 ~/.google_authenticator
+```
+
+(`3 30` and issuer must match `anssi_base.twofa.rate_limit` and `anssi_base.twofa.issuer` in `inventory/group_vars/all.yml`.)
+
+### User `superbis` (no 2FA + source IPs)
+
+1. Set **`ssh.totp_exempt_users`** to include `superbis`.
+2. Set **`ssh.user_allow_from_addresses.superbis`** to the CIDRs of your bastion / VPN / jump host(s).
+3. Keep **`ssh.allow_from_any_address`** listing every *other* account that must SSH from anywhere (e.g. `ansadmin`).
+4. Put **`superbis`** in **`existing_users_add_to_ssh_group`** so the account is added to `ssh-users` (`AllowGroups`).
+
+When `allow_from_any_address` and/or `user_allow_from_addresses` are non-empty, **`AllowUsers`** is emitted: anyone not matching a pattern cannot SSH at all — double-check the list before applying.
+
 ## 5. GeoIP / firewall logic
 
 Decision flow inside the `inet filter` table:

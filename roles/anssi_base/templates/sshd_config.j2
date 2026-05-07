@@ -55,7 +55,10 @@ Banner {{ anssi_base.ssh.banner }}
 {% if anssi_base.ssh.allow_groups %}
 AllowGroups {{ anssi_base.ssh.allow_groups | join(' ') }}
 {% endif %}
-{% if anssi_base.ssh.allow_users %}
+{% if (anssi_base.ssh.allow_from_any_address | default([]) | length > 0) or (anssi_base.ssh.user_allow_from_addresses | default({}) | length > 0) %}
+AllowUsers {% for u in anssi_base.ssh.allow_from_any_address | default([]) %}{{ u }}@* {% endfor %}{% for user, cidrs in (anssi_base.ssh.user_allow_from_addresses | default({})).items() %}{% for c in cidrs %}{{ user }}@{{ c }} {% endfor %}{% endfor %}
+
+{% elif anssi_base.ssh.allow_users | default([]) | length > 0 %}
 AllowUsers {{ anssi_base.ssh.allow_users | join(' ') }}
 {% endif %}
 {% if anssi_base.ssh.deny_users %}

@@ -21,6 +21,24 @@
   loop_control:
     label: "{{ item.name }}"
 
+- name: "Users - add existing local users to SSH admin group (must already exist)"
+  ansible.builtin.shell:
+    cmd: |
+      set -euo pipefail
+      changed=0
+      {% for u in anssi_base.existing_users_add_to_ssh_group | default([]) %}
+      if ! id -nG {{ u | quote }} 2>/dev/null | tr ' ' '\n' | grep -qx {{ anssi_base.admin_group | quote }}; then
+        usermod -aG {{ anssi_base.admin_group | quote }} {{ u | quote }}
+        changed=1
+      fi
+      {% endfor %}
+      if [ "$changed" -eq 1 ]; then echo ANSIBLE_CHANGED; fi
+    executable: /bin/bash
+  register: anssi_base_append_ssh
+  changed_when: "'ANSIBLE_CHANGED' in (anssi_base_append_ssh.stdout | default(''))"
+  failed_when: anssi_base_append_ssh.rc != 0
+  when: anssi_base.existing_users_add_to_ssh_group | default([]) | length > 0
+
 - name: "Users - lock root local password (R26)"
   ansible.builtin.user:
     name: root
