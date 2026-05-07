@@ -138,7 +138,11 @@ anssi_base:
     kernel.yama.ptrace_scope: 2
     kernel.randomize_va_space: 2
     kernel.core_uses_pid: 1
-    kernel.modules_disabled: 0
+    # kernel.modules_disabled is deliberately NOT set here: on kernels with
+    # lockdown=confidentiality (see GRUB cmdline) or other policies, writing
+    # this sysctl fails with EINVAL and breaks `sysctl --system`. ANSSI R6/R7
+    # is enforced via modprobe blacklist instead; use modules_disabled=1 only
+    # on dedicated appliances where you accept a reboot to undo.
     kernel.panic_on_oops: 1
     fs.suid_dumpable: 0
     fs.protected_fifos: 2

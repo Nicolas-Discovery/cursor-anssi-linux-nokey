@@ -8,7 +8,11 @@
     mode: "0644"
   notify: Update initramfs
 
-- name: "Kernel - disable kernel module loading at runtime is NOT done (we keep modprobe usable, but we restrict via lockdown=confidentiality on the cmdline)"
+- name: "Kernel - module loading policy is via modprobe blacklist (not sysctl modules_disabled)"
   ansible.builtin.debug:
-    msg: "kernel.modules_disabled is left at 0; lockdown=confidentiality is enforced via GRUB cmdline."
+    msg: >-
+      kernel.modules_disabled is not applied via sysctl: runtime writes often
+      fail with EINVAL under lockdown=confidentiality / hardened kernels and
+      abort `sysctl --system`. Use modprobe blacklist (this role) for ANSSI
+      R6/R7; set modules_disabled=1 only on purpose-built appliances.
   changed_when: false
