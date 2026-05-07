@@ -4,7 +4,7 @@ galaxy_info:
   author: anssi-bp028-stack
   description: Promtail agent shipping logs (journald + audit + auth) to a central Loki.
   license: MIT
-  min_ansible_version: "2.15"
+  min_ansible_version: "2.16"
   platforms:
     - name: Debian
       versions: [trixie]

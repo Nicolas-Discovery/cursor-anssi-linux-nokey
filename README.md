@@ -19,7 +19,8 @@ disabled), **Loki / Promtail** log shipping, and **Wazuh** agent enrolment.
 ```
 .
 ├── ansible.cfg                       # Disables key auth, forces password+TOTP
-├── requirements.yml                  # Ansible collections (ansible.posix etc.)
+├── controller-requirements.txt       # Python deps for the controller (ansible-core, lint)
+├── requirements.yml                  # Ansible Galaxy collection (ansible.posix)
 ├── inventory/
 │   ├── hosts.yml.example
 │   └── secrets.vault.yml.example
@@ -36,25 +37,44 @@ disabled), **Loki / Promtail** log shipping, and **Wazuh** agent enrolment.
     └── wazuh/                        # Optional Wazuh agent
 ```
 
-## 2. Quick start
+## 2. Supported controller versions
+
+| Component       | Version range                          | Notes |
+| --------------- | -------------------------------------- | ----- |
+| Python          | `>= 3.10`                              | Required by `ansible-core` 2.16+. |
+| `ansible-core`  | `>= 2.16, < 2.21` (pinned via pip)     | 2.16/2.17/2.18/2.19/2.20 LTS line. 2.14 / 2.15 are EOL and no longer tested. |
+| `ansible.posix` | `>= 2.0.0, < 3.0.0` (pinned in `requirements.yml`) | Provides `ansible.posix.mount` plus the `profile_tasks` / `timer` callbacks. |
+
+The stack does **not** depend on `community.general`. The previous
+`community.general.yaml` callback has been replaced by the built-in
+`ansible.builtin.default` callback with `callback_result_format = yaml`
+(available since `ansible-core` 2.13).
+
+## 3. Quick start
 
 ```bash
-# 1. Install dependencies on the controller
-ansible-galaxy collection install -r requirements.yml
+# 1. Create a dedicated controller virtualenv and install ansible-core + lint
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -U pip
+pip install -r controller-requirements.txt
 
-# 2. Customise inventory
+# 2. Install the pinned collection
+ansible-galaxy collection install -r requirements.yml --force
+
+# 3. Customise inventory
 cp inventory/hosts.yml.example inventory/hosts.yml
 $EDITOR inventory/hosts.yml
 
-# 3. Encrypt secrets (vault)
+# 4. Encrypt secrets (vault)
 cp inventory/secrets.vault.yml.example inventory/secrets.vault.yml
 $EDITOR inventory/secrets.vault.yml
 ansible-vault encrypt inventory/secrets.vault.yml
 
-# 4. Review the single variable file
+# 5. Review the single variable file
 $EDITOR group_vars/all.yml
 
-# 5. Run
+# 6. Run
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
   --ask-pass --ask-become-pass \
   -e @inventory/secrets.vault.yml --ask-vault-pass
@@ -67,7 +87,7 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
 > will be locked out. The role prints a hint listing every user missing
 > `~/.google_authenticator`.
 
-## 3. The single variable file (`group_vars/all.yml`)
+## 4. The single variable file (`group_vars/all.yml`)
 
 Every option of every role lives in this file, organised in eight sections:
 
@@ -83,7 +103,7 @@ Every option of every role lives in this file, organised in eight sections:
 | 7. Loki | Promtail binary version + URL, basic auth, TLS, scrape jobs |
 | 8. Wazuh | Manager address + port, enrolment via authd password, agent options |
 
-## 4. GeoIP / firewall logic
+## 5. GeoIP / firewall logic
 
 Decision flow inside the `inet filter` table:
 
@@ -107,7 +127,7 @@ The Python helper `/usr/local/sbin/anssi-geoip-update` downloads
 through a hardened systemd timer, regenerates the include files in
 `/etc/nftables.d/` and reloads the ruleset.
 
-## 5. CrowdSec
+## 6. CrowdSec
 
 * Engine + nftables bouncer (IPv4 **and** IPv6) installed from the upstream
   packagecloud repository.
@@ -125,7 +145,7 @@ through a hardened systemd timer, regenerates the include files in
   continent is not in `allowed_continents`) is banned for
   `crowdsec.geoip_decision_duration`.
 
-## 6. Optional roles
+## 7. Optional roles
 
 | Role | Enable with | Notes |
 | --- | --- | --- |
@@ -133,7 +153,7 @@ through a hardened systemd timer, regenerates the include files in
 | Loki | `role_loki_enabled: true` | Installs Promtail, ships journald + auth.log + audit.log over HTTPS basic auth + tenant ID. |
 | Wazuh | `role_wazuh_enabled: true` | Adds upstream APT repo, installs the agent, registers with `agent-auth -P <password>` and groups. |
 
-## 7. Compliance summary (selected ANSSI BP-028 controls)
+## 8. Compliance summary (selected ANSSI BP-028 controls)
 
 | Control | Implementation |
 | --- | --- |
@@ -151,7 +171,7 @@ through a hardened systemd timer, regenerates the include files in
 | R20 | Chrony with French NTP pool by default |
 | R37-R47 | sysctl drop-in `90-anssi.conf` (kernel + IPv4 + IPv6 hardening) |
 
-## 8. Re-running
+## 9. Re-running
 
 The stack is idempotent. To refresh GeoIP sets only:
 
