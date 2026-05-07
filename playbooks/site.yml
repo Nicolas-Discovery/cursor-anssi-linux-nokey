@@ -7,8 +7,8 @@
 #       --ask-pass --ask-become-pass \
 #       -e @inventory/secrets.vault.yml --ask-vault-pass
 #
-# All tunables live in group_vars/all.yml. Toggle optional roles via
-# `role_*_enabled` variables in that file.
+# All tunables live in inventory/group_vars/all.yml (auto-loaded next to
+# the inventory file). Toggle optional roles via `role_*_enabled` keys.
 
 - name: "ANSSI BP-028 critical - Debian 13"
   hosts: all

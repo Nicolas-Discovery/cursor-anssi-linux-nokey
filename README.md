@@ -8,7 +8,7 @@ continent / country / IP whitelist + blacklist** logic, **CrowdSec**
 profile), and three optional add-on roles: **Docker** (CIS-hardened, IPv6
 disabled), **Loki / Promtail** log shipping, and **Wazuh** agent enrolment.
 
-> All tunables are in **one** file: `group_vars/all.yml`. Versions, toggles,
+> All tunables are in **one** file: `inventory/group_vars/all.yml`. Versions, toggles,
 > hardening parameters, GeoIP policy, CrowdSec enrolment token reference,
 > Docker daemon, Loki and Wazuh configuration - everything is there.
 
@@ -23,9 +23,9 @@ disabled), **Loki / Promtail** log shipping, and **Wazuh** agent enrolment.
 ├── requirements.yml                  # Ansible Galaxy collection (ansible.posix)
 ├── inventory/
 │   ├── hosts.yml.example
-│   └── secrets.vault.yml.example
-├── group_vars/
-│   └── all.yml                       # SINGLE source of truth (every variable)
+│   ├── secrets.vault.yml.example
+│   └── group_vars/
+│       └── all.yml                   # SINGLE source of truth (every variable)
 ├── playbooks/
 │   └── site.yml
 └── roles/
@@ -72,7 +72,7 @@ $EDITOR inventory/secrets.vault.yml
 ansible-vault encrypt inventory/secrets.vault.yml
 
 # 5. Review the single variable file
-$EDITOR group_vars/all.yml
+$EDITOR inventory/group_vars/all.yml
 
 # 6. Run
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
@@ -87,7 +87,11 @@ ansible-playbook -i inventory/hosts.yml playbooks/site.yml \
 > will be locked out. The role prints a hint listing every user missing
 > `~/.google_authenticator`.
 
-## 4. The single variable file (`group_vars/all.yml`)
+## 4. The single variable file (`inventory/group_vars/all.yml`)
+
+It lives next to the inventory so that Ansible auto-loads it for every
+host targeted via `-i inventory/hosts.yml` or `-i inventory/`. No
+`vars_files` directive is needed.
 
 Every option of every role lives in this file, organised in eight sections:
 
