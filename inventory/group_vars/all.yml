@@ -37,7 +37,7 @@ target_distribution_major: "13"
 # -----------------------------------------------------------------------------
 role_anssi_base_enabled: true
 role_nftables_enabled: true
-role_crowdsec_enabled: true
+role_crowdsec_enabled: false
 role_docker_enabled: false
 role_loki_enabled: false
 role_wazuh_enabled: false
@@ -344,7 +344,11 @@ anssi_base:
     user_allow_from_addresses:
       superbis:
         - "10.0.0.0/8"                 # REPLACE: IPv4 CIDRs allowed for user superbis
-        - "[2001:db8:1000::]/64"       # IPv6: use [addr]/len so AllowUsers becomes user@[addr]/len
+        - "[2001:db8:1000::]/64" 
+        - "90.63.184.91"
+        - "5.196.62.22"
+        - "2a01:cb04:24f:42::/56"
+        - "2001:41d0:203:61a0::1:6"
     # PAM skips google_authenticator for these accounts (password only over SSH).
     totp_exempt_users:
       - superbis
@@ -528,9 +532,13 @@ nftables:
   ip_whitelist_v4:
     - "127.0.0.0/8"
     # - "203.0.113.10/32"   # bastion
+      - "90.63.184.91"
+      - "5.196.62.22"
   ip_whitelist_v6:
     - "::1/128"
     # - "2001:db8::1/128"   # bastion v6
+      - "2a01:cb04:24f:42::/56"
+      - "2001:41d0:203:61a0::1:6"
 
   # Always-drop list (highest priority, applied before whitelist).
   ip_blacklist_v4: []
@@ -540,8 +548,12 @@ nftables:
   trusted_management_v4:
     - "10.0.0.0/8"
     - "192.168.0.0/16"
+    - "90.63.184.91"
+    - "5.196.62.22"
   trusted_management_v6:
     - "fc00::/7"
+    - "2a01:cb04:24f:42::/56"
+    - "2001:41d0:203:61a0::1:6"
 
 
 # -----------------------------------------------------------------------------
@@ -592,6 +604,10 @@ crowdsec:
     cidrs:
       - "127.0.0.1/32"
       - "::1/128"
+      - "90.63.184.91"
+      - "5.196.62.22"
+      - "2a01:cb04:24f:42::/56"
+      - "2001:41d0:203:61a0::1:6"
       # - "10.0.0.0/8"
     expression: []   # advanced CEL whitelist expressions
 
