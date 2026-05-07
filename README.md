@@ -188,3 +188,33 @@ To enforce only one section (e.g. SSH):
 ```bash
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml -t ssh
 ```
+
+## 10. Troubleshooting SSH (`kex_exchange_identification` / connection reset)
+
+If Ansible prints:
+
+```text
+kex_exchange_identification: read: Connection reset by peer
+Connection reset by <host> port 22
+```
+
+typical causes are:
+
+1. **One new SSH connection per task (most common here)** — A playbook run with
+   SSH multiplexing disabled forces **every** task to open a new TCP connection
+   and run KEX + password + TOTP. Long runs can hit **`MaxStartups`** on `sshd`
+   (extra connections get RST during KEX) or trigger **fail2ban / CrowdSec**.
+   The shipped `ansible.cfg` uses **`ControlMaster=auto`** + **`ControlPersist=4h`**
+   and **`control_path_dir`** so you authenticate once and reuse the master socket
+   for the whole run. Ensure `~/.ansible/cp` on the controller is writable.
+
+2. **Firewall / GeoIP** — After the nftables role, SSH is only open to sources in
+   the GeoIP allow-sets plus **`nftables.ip_whitelist_*`**. Run Ansible from an
+   allowed IP or extend the whitelist before enabling GeoIP.
+
+3. **Transients** — `retries = 5` and `timeout = 60` under `[ssh_connection]` cover
+   brief network glitches.
+
+**Server-side** defaults in `inventory/group_vars/all.yml` now include a higher
+**`anssi_base.ssh.max_startups`** and **`max_sessions: 10`** for heavy Ansible
+runs; adjust under `anssi_base.ssh` if you need stricter values after onboarding.

@@ -36,6 +36,7 @@ StrictModes {{ 'yes' if anssi_base.ssh.strict_modes else 'no' }}
 # --- Sessions -----------------------------------------------------------------
 MaxAuthTries {{ anssi_base.ssh.max_auth_tries }}
 MaxSessions {{ anssi_base.ssh.max_sessions }}
+MaxStartups {{ anssi_base.ssh.max_startups }}
 LoginGraceTime {{ anssi_base.ssh.login_grace_time }}
 ClientAliveInterval {{ anssi_base.ssh.client_alive_interval }}
 ClientAliveCountMax {{ anssi_base.ssh.client_alive_count_max }}

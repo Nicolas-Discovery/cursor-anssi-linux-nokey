@@ -307,7 +307,15 @@ anssi_base:
     allow_agent_forwarding: false
     permit_user_environment: false
     max_auth_tries: 3
-    max_sessions: 4
+    # Ansible + SSH multiplexing can use several multiplexed sessions on one
+    # TCP connection; stay at or above OpenSSH default (10) to avoid subtle
+    # 'Connection reset' / 'channel open' failures during large playbooks.
+    max_sessions: 10
+    # Unauthenticated connection burst limit: Ansible without multiplexing
+    # spawns one NEW TCP per task — default 10:30:100 drops excess with TCP RST
+    # (often logged as kex_exchange_identification reset). Raising this keeps
+    # first-run automation reliable; tune down after baseline if desired.
+    max_startups: "100:30:400"
     login_grace_time: 30
     client_alive_interval: 300
     client_alive_count_max: 0
