@@ -141,7 +141,8 @@ Decision flow inside the `inet filter` table:
 ```
 1. ct state established,related      -> ACCEPT
 2. ip(6) saddr @ip_blacklist_*       -> DROP (highest priority, even over whitelist)
-3. ip(6) saddr @ip_whitelist_*       -> ACCEPT (skip GeoIP)
+3. ip(6) saddr @ip_whitelist_*       -> ACCEPT (static whitelist, skip GeoIP)
+3b. ip(6) saddr @s3_whitelist_*      -> ACCEPT (S3-backed dynamic whitelist, see §5b)
 4. ip(6) saddr @geoip_block_*        -> DROP    (e.g. ru, by — even though EU continent)
 5. ip(6) saddr @geoip_allow_*        -> jump to services_v4 / services_v6
 6. default                           -> DROP
@@ -157,6 +158,69 @@ The Python helper `/usr/local/sbin/anssi-geoip-update` downloads
 [ipdeny.com](https://www.ipdeny.com) zone files (IPv4 + IPv6) every day
 through a hardened systemd timer, regenerates the include files in
 `/etc/nftables.d/` and reloads the ruleset.
+
+### 5b. Dynamic whitelist from a secure S3 bucket (every 10 minutes)
+
+The nftables role ships an **opt-in** systemd service + timer that fetches
+text files from a private S3 bucket and rebuilds two extra sets,
+**`s3_whitelist_v4`** and **`s3_whitelist_v6`**, matched right after the
+static whitelist:
+
+| File / unit | Purpose |
+| --- | --- |
+| `/usr/local/sbin/anssi-s3-whitelist-update` | Refresher script (`awscli` + atomic write + `nft -c` + reload). |
+| `/etc/anssi-s3-whitelist.yaml` | Runtime config (bucket, region, object keys, extra `aws` args). |
+| `/etc/anssi-s3-whitelist.env` | `EnvironmentFile` (mode 0600) for credentials when not using an IAM role. |
+| `/etc/nftables.d/15-s3-whitelist.conf` | Generated include with the two sets. |
+| `anssi-s3-whitelist-update.service` / `.timer` | Hardened oneshot unit + timer (default: every 10 min, `+RandomizedDelaySec=20s`). |
+
+Enable it in `inventory/group_vars/all.yml` under `nftables.s3_whitelist`:
+
+```yaml
+nftables:
+  s3_whitelist:
+    enabled: true
+    bucket: "anssi-fw-whitelists-prod"
+    objects:
+      - "whitelist/global.txt"
+      - "whitelist/{{ inventory_hostname }}.txt"
+    region: "eu-west-3"
+    interval_minutes: 10        # systemd OnUnitActiveSec
+```
+
+**Credentials.** Prefer an **IAM instance role**: leave `access_key_id`
+empty, the unit only exports `AWS_DEFAULT_REGION`. If you must use static
+keys, put them in Ansible Vault (see
+`inventory/secrets.vault.yml.example`) and pin them via `-e`. The
+environment file is written with `mode 0600` and `no_log: true`.
+
+**S3 bucket hardening recommendations** (out of scope of this stack, but
+the script supports them):
+
+- Enable **default encryption** (SSE-KMS or SSE-S3) at the bucket level.
+- Block public access; restrict the bucket policy to the IAM role ARN(s)
+  of your hosts, the `aws:SourceVpc` (or VPCe) and TLS only
+  (`aws:SecureTransport = true`).
+- Enable **bucket versioning** and **Object Lock** if the list must be
+  tamper-evident.
+- For SSE-C, populate `aws_cli_extra_args` with
+  `--sse-customer-algorithm AES256 --sse-customer-key file://… --sse-customer-key-md5 …`.
+
+**File format.** One IPv4/IPv6 host or CIDR per line; `#` comments and
+blank lines are ignored. Invalid lines are logged via `journalctl -u
+anssi-s3-whitelist-update.service` and *skipped* — they never reach the
+ruleset.
+
+**Failure mode.** Atomic write + `nft -c` validation before reload: if the
+new content would break the ruleset, the previous include is kept and the
+service exits non-zero so the failure is visible in `systemctl status`.
+
+To force a refresh:
+
+```bash
+sudo systemctl start anssi-s3-whitelist-update.service
+journalctl -u anssi-s3-whitelist-update.service -n 50
+```
 
 ## 6. CrowdSec
 

@@ -344,7 +344,7 @@ anssi_base:
     user_allow_from_addresses:
       superbis:
         - "10.0.0.0/8"                 # REPLACE: IPv4 CIDRs allowed for user superbis
-        - "[2001:db8:1000::]/64" 
+        - "[2001:db8:1000::]/64"
         - "90.63.184.91"
         - "5.196.62.22"
         - "2a01:cb04:24f:42::/56"
@@ -554,6 +554,48 @@ nftables:
     - "fc00::/7"
     - "2a01:cb04:24f:42::/56"
     - "2001:41d0:203:61a0::1:6/128"
+
+  # ---- 4.3 Dynamic whitelist from a secure S3 bucket --------------------------
+  # A systemd timer fetches one or more text files from a (private, encrypted)
+  # S3 bucket every `interval_minutes` and rebuilds two nftables sets:
+  #     s3_whitelist_v4 / s3_whitelist_v6
+  # These are matched in the input chain BEFORE the GeoIP filter (same
+  # privilege level as ip_whitelist_*), so updates take effect within minutes
+  # without re-running Ansible. The include file is regenerated atomically and
+  # `nft -c` validates the ruleset before nftables is reloaded.
+  #
+  # File format: one IPv4/IPv6 host or CIDR per line. Blank lines and `#`
+  # comments are ignored. Anything else is logged and skipped.
+  #
+  # Authentication is provided through /etc/anssi-s3-whitelist.env (mode 0600,
+  # rendered from the variables below). Prefer IAM instance roles in cloud
+  # environments and leave access_key_id / secret_access_key empty; provide
+  # them via Ansible Vault only when no role is available.
+  s3_whitelist:
+    enabled: false
+    bucket: ""                            # e.g. "anssi-fw-whitelists-prod"
+    objects:                              # list of S3 object keys to merge
+      - "whitelist/global.txt"
+    region: "eu-west-3"
+    profile: ""                           # named AWS CLI profile, optional
+    endpoint_url: ""                      # for S3-compatible providers (MinIO, OVH, Scaleway)
+    access_key_id: ""                     # leave empty when using an IAM role
+    secret_access_key: ""                 # same, prefer Vault if set
+    session_token: ""                     # for STS temporary credentials
+    extra_env: {}                         # arbitrary KEY=value passed to the unit
+    # Pass-through for SSE-C, request-payer, etc.:
+    #   - "--sse-customer-algorithm"
+    #   - "AES256"
+    #   - "--sse-customer-key-md5"
+    #   - "..."
+    aws_cli_extra_args: []
+    interval_minutes: 10                  # systemd OnUnitActiveSec
+    on_boot_sec: "2min"
+    accuracy_sec: "30s"
+    randomized_delay_sec: "20s"
+    timeout_sec: 120                      # per-run hard timeout
+    run_now: true                         # run once at the end of the role
+    fail_on_bootstrap_error: false        # tolerate first-run failures (timer will retry)
 
 
 # -----------------------------------------------------------------------------

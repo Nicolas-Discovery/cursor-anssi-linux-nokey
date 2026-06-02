@@ -1,0 +1,14 @@
+[Unit]
+Description=Run the ANSSI S3-backed nftables whitelist refresher
+
+[Timer]
+# Run once shortly after boot, then every {{ nftables.s3_whitelist.interval_minutes | default(10) }} minutes
+OnBootSec={{ nftables.s3_whitelist.on_boot_sec | default('2min') }}
+OnUnitActiveSec={{ nftables.s3_whitelist.interval_minutes | default(10) }}min
+AccuracySec={{ nftables.s3_whitelist.accuracy_sec | default('30s') }}
+RandomizedDelaySec={{ nftables.s3_whitelist.randomized_delay_sec | default('20s') }}
+Persistent=true
+Unit=anssi-s3-whitelist-update.service
+
+[Install]
+WantedBy=timers.target

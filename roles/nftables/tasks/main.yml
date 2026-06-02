@@ -5,6 +5,7 @@
       - nftables
       - python3-requests
       - python3-yaml
+      - awscli
     state: present
 
 - name: "Nftables - directories for GeoIP cache + generated includes"
@@ -76,6 +77,87 @@
     state: started
     daemon_reload: true
   when: nftables.geoip.enabled | bool
+
+# --- S3-backed whitelist refresher (optional, every N minutes) ---------------
+- name: "Nftables - install the S3 whitelist refresher script"
+  ansible.builtin.copy:
+    src: anssi-s3-whitelist-update.py
+    dest: /usr/local/sbin/anssi-s3-whitelist-update
+    owner: root
+    group: root
+    mode: "0750"
+  when: nftables.s3_whitelist.enabled | default(false) | bool
+
+- name: "Nftables - deploy the S3 whitelist runtime config"
+  ansible.builtin.template:
+    src: anssi-s3-whitelist.yaml.j2
+    dest: /etc/anssi-s3-whitelist.yaml
+    owner: root
+    group: root
+    mode: "0640"
+  when: nftables.s3_whitelist.enabled | default(false) | bool
+
+- name: "Nftables - deploy the S3 whitelist environment file (AWS credentials)"
+  ansible.builtin.template:
+    src: anssi-s3-whitelist.env.j2
+    dest: /etc/anssi-s3-whitelist.env
+    owner: root
+    group: root
+    mode: "0600"
+  when: nftables.s3_whitelist.enabled | default(false) | bool
+  no_log: true
+
+- name: "Nftables - install S3 whitelist systemd service"
+  ansible.builtin.template:
+    src: anssi-s3-whitelist-update.service.j2
+    dest: /etc/systemd/system/anssi-s3-whitelist-update.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: nftables.s3_whitelist.enabled | default(false) | bool
+  notify: Reload systemd daemons
+
+- name: "Nftables - install S3 whitelist systemd timer (every N minutes)"
+  ansible.builtin.template:
+    src: anssi-s3-whitelist-update.timer.j2
+    dest: /etc/systemd/system/anssi-s3-whitelist-update.timer
+    owner: root
+    group: root
+    mode: "0644"
+  when: nftables.s3_whitelist.enabled | default(false) | bool
+  notify: Reload systemd daemons
+
+- name: "Nftables - ensure the dynamic S3 include exists (empty sets bootstrap)"
+  ansible.builtin.copy:
+    dest: /etc/nftables.d/15-s3-whitelist.conf
+    owner: root
+    group: root
+    mode: "0640"
+    force: false
+    content: |
+      # Bootstrap placeholder (managed by /usr/local/sbin/anssi-s3-whitelist-update).
+      set s3_whitelist_v4 { type ipv4_addr; flags interval; auto-merge; }
+      set s3_whitelist_v6 { type ipv6_addr; flags interval; auto-merge; }
+  when: nftables.s3_whitelist.enabled | default(false) | bool
+
+- name: "Nftables - enable and start the S3 whitelist timer"
+  ansible.builtin.systemd:
+    name: anssi-s3-whitelist-update.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: nftables.s3_whitelist.enabled | default(false) | bool
+
+- name: "Nftables - run the S3 whitelist refresher once now (bootstrap)"
+  ansible.builtin.command: /usr/local/sbin/anssi-s3-whitelist-update --apply
+  when:
+    - nftables.s3_whitelist.enabled | default(false) | bool
+    - nftables.s3_whitelist.run_now | default(true) | bool
+  register: nftables_s3_run
+  changed_when: true
+  failed_when:
+    - nftables_s3_run.rc != 0
+    - nftables.s3_whitelist.fail_on_bootstrap_error | default(false) | bool
 
 - name: "Nftables - deploy the master ruleset"
   ansible.builtin.template:

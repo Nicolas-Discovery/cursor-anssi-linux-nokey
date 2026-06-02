@@ -1,0 +1,36 @@
+# Managed by Ansible (nftables role) - consumed by /usr/local/sbin/anssi-s3-whitelist-update
+# All values come from nftables.s3_whitelist.* in inventory/group_vars/all.yml.
+
+bucket: "{{ nftables.s3_whitelist.bucket }}"
+{% if nftables.s3_whitelist.region | default('') | length > 0 %}
+region: "{{ nftables.s3_whitelist.region }}"
+{% endif %}
+{% if nftables.s3_whitelist.endpoint_url | default('') | length > 0 %}
+endpoint_url: "{{ nftables.s3_whitelist.endpoint_url }}"
+{% endif %}
+{% if nftables.s3_whitelist.profile | default('') | length > 0 %}
+profile: "{{ nftables.s3_whitelist.profile }}"
+{% endif %}
+
+# S3 object keys to fetch and merge. Each must be a UTF-8 text file with one
+# IP or CIDR per line; lines starting with # and empty lines are ignored.
+objects:
+{% for key in nftables.s3_whitelist.objects %}
+  - "{{ key }}"
+{% endfor %}
+
+# Pass-through extra args to `aws s3api get-object` (e.g. SSE-C parameters).
+aws_cli_extra_args:
+{% for arg in nftables.s3_whitelist.aws_cli_extra_args | default([]) %}
+  - "{{ arg }}"
+{% endfor %}
+
+# Where to write the generated nftables include.
+output_file: "/etc/nftables.d/15-s3-whitelist.conf"
+
+# Validation + reload (left as defaults unless you run a custom firewall).
+nft_main_config: "/etc/nftables.conf"
+reload_command:
+  - systemctl
+  - reload
+  - nftables
