@@ -15,6 +15,9 @@ table inet filter {
 
     # ---------- sets: merged from /etc/nftables.d/*.conf ---------------------
     include "/etc/nftables.d/10-static.conf"
+{% if nftables.s3_whitelist.enabled | default(false) %}
+    include "/etc/nftables.d/15-s3-whitelist.conf"
+{% endif %}
 {% if nftables.geoip.enabled %}
     include "/etc/nftables.d/20-geoip-v4.conf"
     include "/etc/nftables.d/20-geoip-v6.conf"
@@ -39,7 +42,12 @@ table inet filter {
         ip  saddr @ip_whitelist_v4 accept
         ip6 saddr @ip_whitelist_v6 accept
 
-{% if nftables.allow_icmpv4 %}
+{% if nftables.s3_whitelist.enabled | default(false) %}
+        # 2b. Dynamic whitelist refreshed from S3 every {{ nftables.s3_whitelist.interval_minutes | default(10) }} minutes
+        ip  saddr @s3_whitelist_v4 accept
+        ip6 saddr @s3_whitelist_v6 accept
+
+{% endif %}{% if nftables.allow_icmpv4 %}
         # 3. ICMP / ICMPv6 controlled (PMTUD, ping, NDP)
         ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-request } limit rate 5/second burst 10 packets accept
 {% endif %}

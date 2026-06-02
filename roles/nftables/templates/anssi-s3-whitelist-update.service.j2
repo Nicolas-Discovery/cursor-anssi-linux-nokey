@@ -1,0 +1,39 @@
+[Unit]
+Description=ANSSI nftables whitelist refresher from S3
+Documentation=man:nft(8)
+Wants=network-online.target
+After=network-online.target nftables.service
+ConditionPathExists=/etc/anssi-s3-whitelist.yaml
+ConditionPathExists=/etc/anssi-s3-whitelist.env
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/anssi-s3-whitelist.env
+ExecStart=/usr/local/sbin/anssi-s3-whitelist-update --apply
+TimeoutStartSec={{ nftables.s3_whitelist.timeout_sec | default(120) }}
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+# Hardening (writes only to the include file + tmpdir).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/etc/nftables.d /var/lib/anssi-nftables
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @network-io
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+UMask=0027
