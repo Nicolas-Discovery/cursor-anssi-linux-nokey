@@ -1,8 +1,10 @@
 ---
 # Ansible Galaxy collection requirements.
 #
-# Compatible with ansible-core >= 2.16 (LTS: 2.16, 2.17, 2.18, 2.19, 2.20).
-# `ansible.posix` 2.x is the modern line; it requires ansible-core >= 2.16.
+# Compatible with the maintained ansible-core releases (2.20, 2.21).
+# `ansible.posix` 2.2.x is the current published Galaxy line (latest 2.2.2);
+# it requires ansible-core >= 2.16. The upper bound stays below the unreleased
+# 3.0.0 (present only on the collection's main branch).
 # We do NOT depend on community.general anywhere in this stack:
 #   * the `mount` task uses ansible.posix.mount;
 #   * the runtime callbacks (`profile_tasks`, `timer`) live in ansible.posix
@@ -11,4 +13,4 @@
 #     `callback_result_format = yaml` (see ansible.cfg).
 collections:
   - name: ansible.posix
-    version: ">=2.0.0,<3.0.0"
+    version: ">=2.2.0,<3.0.0"

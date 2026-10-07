@@ -52,9 +52,10 @@ continent-aware profile), and three optional add-on roles: **Docker**
 
 | Component       | Version range                          | Notes |
 | --------------- | -------------------------------------- | ----- |
-| Python          | `>= 3.10`                              | Required by `ansible-core` 2.16+. |
-| `ansible-core`  | `>= 2.16, < 2.21` (pinned via pip)     | 2.16/2.17/2.18/2.19/2.20 LTS line. 2.14 / 2.15 are EOL and no longer tested. |
-| `ansible.posix` | `>= 2.0.0, < 3.0.0` (pinned in `requirements.yml`) | Provides `ansible.posix.mount` plus the `profile_tasks` / `timer` callbacks. |
+| Python          | `>= 3.12, <= 3.14`                      | Control-node range required by `ansible-core` 2.20/2.21. |
+| `ansible-core`  | `>= 2.20, < 2.22` (pinned via pip)     | Maintained releases: 2.20 (security) and 2.21 (latest, 2.21.5). 2.16-2.19 are EOL. Upper bound stays below 2.22 (planned Nov 2026). |
+| `ansible.posix` | `>= 2.2.0, < 3.0.0` (pinned in `requirements.yml`) | Latest published Galaxy release is 2.2.2. Provides `ansible.posix.mount` plus the `profile_tasks` / `timer` callbacks. |
+| `ansible-lint`  | `>= 26.0.0, < 27.0.0`                  | CalVer (YY.MM); latest 26.9.0. CI/QA only. |
 
 The stack does **not** depend on `community.general`. The previous
 `community.general.yaml` callback has been replaced by the built-in
@@ -223,7 +224,7 @@ through a hardened systemd timer, regenerates the include files in
 | --- | --- | --- |
 | Docker | `role_docker_enabled: true` | IPv6 disabled in `daemon.json`, ICC off, userns-remap, no-new-privileges, custom seccomp, json-file logging, live-restore. |
 | Loki | `role_loki_enabled: true` | Installs Grafana Alloy from the official Grafana APT repo, ships journald + auth.log + audit.log to Loki over HTTPS basic auth + tenant ID. |
-| Wazuh | `role_wazuh_enabled: true` | Adds the upstream Wazuh 5.x APT repo, installs the agent, registers with `agent-auth -P <password>` and groups. |
+| Wazuh | `role_wazuh_enabled: true` | Adds the upstream Wazuh 4.x APT repo (4.14.x is the current stable; 5.x is still pre-release), installs the agent, registers with `agent-auth -P <password>` and groups. |
 
 ## 8. Compliance summary (selected ANSSI BP-028 controls)
 

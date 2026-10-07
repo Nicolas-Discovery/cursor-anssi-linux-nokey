@@ -7,13 +7,15 @@
 #     pip install -r controller-requirements.txt
 #     ansible-galaxy collection install -r requirements.yml --force
 #
-# The ansible-core upper bound mirrors what the pinned ansible.posix 2.x
-# was tested against; bump cautiously when a new minor is released.
-ansible-core>=2.16,<2.21
+# ansible-core maintained releases (as of 2026-10): 2.20 (security) and 2.21
+# (latest, 2.21.5). 2.16-2.19 are EOL. Upper bound stays below the next major
+# (2.22, planned Nov 2026) until it is validated. Requires Python 3.12-3.14 on
+# the controller.
+ansible-core>=2.20,<2.22
 
-# Linting / QA used in CI.
-ansible-lint>=24.7.0,<26.0.0
-yamllint>=1.35.1,<2.0.0
+# Linting / QA used in CI. ansible-lint uses CalVer (YY.MM); latest is 26.x.
+ansible-lint>=26.0.0,<27.0.0
+yamllint>=1.37.0,<2.0.0
 
 # Speeds up Jinja2 filters on large CIDR sets and is required by some
 # modules' password_hash filter when generating yescrypt hashes locally.

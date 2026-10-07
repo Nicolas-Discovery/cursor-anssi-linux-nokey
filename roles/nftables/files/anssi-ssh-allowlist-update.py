@@ -49,7 +49,10 @@ except ImportError:  # pragma: no cover
     sys.exit(2)
 
 # Azure Storage REST API version used for Shared Key signing.
-X_MS_VERSION = "2021-08-06"
+# 2026-04-06 is the latest fully-deployed service version (recommended by
+# Microsoft). The Shared Key string-to-sign format is unchanged across all
+# versions since 2015, so this value only selects the service behaviour.
+X_MS_VERSION = "2026-04-06"
 
 
 def load_config(path: str) -> dict:

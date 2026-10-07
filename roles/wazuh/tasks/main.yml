@@ -16,11 +16,13 @@
     group: root
     mode: "0755"
 
-- name: "Wazuh - upstream signing key"
+- name: "Wazuh - upstream signing key (4.x repo)"
   ansible.builtin.shell: |
     set -euo pipefail
     curl -fsSL {{ wazuh.repo_key_url }} \
-      | gpg --dearmor --yes -o /usr/share/keyrings/wazuh.gpg
+      | gpg --no-default-keyring \
+            --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import
+    chmod 644 /usr/share/keyrings/wazuh.gpg
   args:
     creates: /usr/share/keyrings/wazuh.gpg
     executable: /bin/bash

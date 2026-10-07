@@ -57,19 +57,22 @@ versions:
   libpam_pwquality: "latest"
   nftables: "latest"
 
-  # CrowdSec - upstream APT repo, pinned major.
-  crowdsec: "1.7.*"
-  crowdsec_firewall_bouncer: "0.0.*"
+  # CrowdSec - upstream APT repo, pinned major (latest stable 1.8.x).
+  crowdsec: "1.8.*"
+  crowdsec_firewall_bouncer: "0.0.*"   # latest 0.0.38 (bouncer still on 0.0.x)
 
-  # Docker (Docker CE upstream repo).
+  # Docker (Docker CE upstream repo). Epoch 5, latest stable 29.8.x.
   docker_ce: "5:29.*"
   docker_compose_plugin: "2.*"
 
   # Grafana Alloy log/telemetry agent (replaces deprecated Promtail).
+  # "latest" tracks the Grafana APT repo (current stable 1.20.x).
   alloy: "latest"
 
-  # Wazuh agent (Wazuh upstream APT repo, 5.x line).
-  wazuh_agent: "5.0.*"
+  # Wazuh agent (Wazuh upstream APT repo, 4.x line).
+  # NOTE: the 5.x line is still pre-release (5.0.0-rc) as of 2026-10; the
+  # latest STABLE agent is 4.14.x. Keep this in sync with wazuh.repo_url below.
+  wazuh_agent: "4.14.*"
 
 
 # -----------------------------------------------------------------------------
@@ -756,7 +759,8 @@ loki:
 # 8. WAZUH AGENT ROLE (optional, central SIEM)
 # -----------------------------------------------------------------------------
 wazuh:
-  repo_url: "https://packages.wazuh.com/5.x/apt/"
+  # 4.x is the current STABLE line (5.x is still pre-release as of 2026-10).
+  repo_url: "https://packages.wazuh.com/4.x/apt/"
   repo_key_url: "https://packages.wazuh.com/key/GPG-KEY-WAZUH"
 
   # Wazuh manager(s) the agent must register with.
