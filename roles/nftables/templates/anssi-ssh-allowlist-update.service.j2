@@ -1,0 +1,27 @@
+[Unit]
+Description=ANSSI SSH firewall allowlist refresher (Azure Blob Storage)
+Wants=network-online.target
+After=network-online.target nftables.service
+ConditionPathExists=/etc/anssi-ssh-allowlist.yaml
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/anssi-ssh-allowlist-update --apply
+TimeoutStartSec=5min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/etc/nftables.d /var/lib/anssi-nftables
+# The account key file is under /etc and only needs to be READ.
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @network-io
+SystemCallFilter=~@privileged @resources

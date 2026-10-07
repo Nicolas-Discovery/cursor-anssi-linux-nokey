@@ -1,0 +1,33 @@
+# Managed by Ansible (nftables role) - consumed by
+# /usr/local/sbin/anssi-ssh-allowlist-update
+#
+# Azure Blob Storage source for the dynamic SSH firewall allowlist.
+account_name: "{{ nftables.ssh_restriction.azure.account_name }}"
+container: "{{ nftables.ssh_restriction.azure.container }}"
+blob: "{{ nftables.ssh_restriction.azure.blob }}"
+endpoint_suffix: "{{ nftables.ssh_restriction.azure.endpoint_suffix | default('core.windows.net') }}"
+azure_enabled: {{ nftables.ssh_restriction.azure.enabled | bool }}
+timeout: {{ nftables.ssh_restriction.azure.timeout | default(30) }}
+
+# Authentication: account key read from this file (mode 0600) when present,
+# otherwise the SAS token below, otherwise anonymous access.
+key_file: "{{ nftables.ssh_restriction.azure.key_file }}"
+sas_token: "{{ nftables.ssh_restriction.azure.sas_token | default('') }}"
+
+# Always-on SSH sources, merged with the fetched bucket list.
+static_allow_v4:
+{% for cidr in nftables.ssh_restriction.static_allow_v4 | default([]) %}
+  - "{{ cidr }}"
+{% endfor %}
+static_allow_v6:
+{% for cidr in nftables.ssh_restriction.static_allow_v6 | default([]) %}
+  - "{{ cidr }}"
+{% endfor %}
+
+# Output nftables include file and the set names it must define.
+output: /etc/nftables.d/15-ssh-allow.conf
+set_v4: ssh_allow_v4
+set_v6: ssh_allow_v6
+
+# Offline fallback cache of the last successfully fetched bucket content.
+cache_file: /var/lib/anssi-nftables/ssh-allowlist.cache

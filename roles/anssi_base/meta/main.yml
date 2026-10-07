@@ -4,7 +4,7 @@ galaxy_info:
   author: anssi-bp028-stack
   description: >
     ANSSI BP-028 v2.0 baseline hardening for Debian 13 (Trixie).
-    Profile "élevé/critique". Password + TOTP authentication.
+    Profile "élevé/critique". Password-only authentication (no SSH key, no MFA).
   license: MIT
   min_ansible_version: "2.16"
   platforms:

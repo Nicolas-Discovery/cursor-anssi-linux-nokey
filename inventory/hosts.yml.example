@@ -7,6 +7,6 @@ all:
       ansible_host: 203.0.113.10
       ansible_port: 22
       ansible_user: ansadmin
-      # password + TOTP -> use --ask-pass on the CLI, do NOT pin a key.
+      # password-only (no key, no MFA) -> use --ask-pass on the CLI, do NOT pin a key.
   vars:
     ansible_python_interpreter: /usr/bin/python3

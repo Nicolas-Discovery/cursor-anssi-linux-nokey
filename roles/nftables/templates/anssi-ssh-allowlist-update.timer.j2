@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the ANSSI SSH firewall allowlist refresher periodically
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec={{ '24h' if nftables.ssh_restriction.azure.refresh_interval == 'daily' else nftables.ssh_restriction.azure.refresh_interval }}
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

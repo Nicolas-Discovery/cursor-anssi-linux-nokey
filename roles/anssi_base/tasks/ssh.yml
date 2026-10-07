@@ -10,6 +10,16 @@
     validate: "/usr/sbin/sshd -t -f %s"
   notify: Restart sshd
 
+- name: "SSH - deploy /etc/pam.d/sshd (password-only, or password + TOTP if twofa enabled)"
+  ansible.builtin.template:
+    src: pam-sshd.j2
+    dest: /etc/pam.d/sshd
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart sshd
+
 - name: "SSH - remove weak host keys (DSA, ECDSA)"
   ansible.builtin.file:
     path: "{{ item }}"
