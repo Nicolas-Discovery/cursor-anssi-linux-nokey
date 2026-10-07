@@ -1,4 +1,5 @@
 # Managed by Ansible (anssi_base) - PAM stack for SSH on Debian 13.
+{% if anssi_base.twofa.enabled %}
 # 2FA chain: password (pam_unix) + TOTP (pam_google_authenticator).
 
 # --- Authentication chain (order matters!) -----------------------------------
@@ -13,6 +14,11 @@ auth        sufficient   pam_succeed_if.so user = {{ u }}
 {% endfor %}
 # Second factor: TOTP (skipped when pam_succeed_if above matched)
 auth        required     pam_google_authenticator.so {% if not anssi_base.twofa.nullok %}{% else %}nullok {% endif %}forward_pass echo_verification_code
+{% else %}
+# Password-only authentication (no SSH key, no MFA/TOTP).
+# faillock + pam_unix password check come from the shared common-auth stack.
+@include common-auth
+{% endif %}
 
 # --- Standard Debian includes ------------------------------------------------
 @include common-account

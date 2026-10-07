@@ -15,6 +15,11 @@ table inet filter {
 
     # ---------- sets: merged from /etc/nftables.d/*.conf ---------------------
     include "/etc/nftables.d/10-static.conf"
+{% if nftables.ssh_restriction.enabled %}
+    # SSH allowlist: static_allow_* seeded by Ansible, then refreshed from the
+    # Azure bucket by /usr/local/sbin/anssi-ssh-allowlist-update.
+    include "/etc/nftables.d/15-ssh-allow.conf"
+{% endif %}
 {% if nftables.geoip.enabled %}
     include "/etc/nftables.d/20-geoip-v4.conf"
     include "/etc/nftables.d/20-geoip-v6.conf"
@@ -35,9 +40,18 @@ table inet filter {
         ip  saddr @ip_blacklist_v4 log prefix "[nft-blacklist4] " level info drop
         ip6 saddr @ip_blacklist_v6 log prefix "[nft-blacklist6] " level info drop
 
-        # 2. Static whitelist (bypass GeoIP)
+        # 2. Static whitelist (bypass GeoIP and SSH restriction)
         ip  saddr @ip_whitelist_v4 accept
         ip6 saddr @ip_whitelist_v6 accept
+
+{% if nftables.ssh_restriction.enabled %}
+        # 2b. SSH is restricted to the allowlist (Azure bucket + static_allow_*).
+        #     Any other source hitting the SSH port is dropped here, BEFORE the
+        #     generic GeoIP/service logic, so SSH is never opened continent-wide.
+        tcp dport {{ nftables.ssh_restriction.port }} ip  saddr @ssh_allow_v4 ct state new accept comment "SSH allowlist v4"
+        tcp dport {{ nftables.ssh_restriction.port }} ip6 saddr @ssh_allow_v6 ct state new accept comment "SSH allowlist v6"
+        tcp dport {{ nftables.ssh_restriction.port }} log prefix "[nft-ssh-denied] " level info drop
+{% endif %}
 
 {% if nftables.allow_icmpv4 %}
         # 3. ICMP / ICMPv6 controlled (PMTUD, ping, NDP)

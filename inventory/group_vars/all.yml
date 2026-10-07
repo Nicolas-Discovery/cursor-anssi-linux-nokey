@@ -55,22 +55,21 @@ versions:
   chrony: "latest"
   unattended_upgrades: "latest"
   libpam_pwquality: "latest"
-  libpam_google_authenticator: "latest"
   nftables: "latest"
 
   # CrowdSec - upstream APT repo, pinned major.
-  crowdsec: "1.6.*"
+  crowdsec: "1.7.*"
   crowdsec_firewall_bouncer: "0.0.*"
 
   # Docker (Docker CE upstream repo).
-  docker_ce: "5:27.*"
+  docker_ce: "5:29.*"
   docker_compose_plugin: "2.*"
 
-  # Grafana Loki agent.
-  promtail: "3.2.1"
+  # Grafana Alloy log/telemetry agent (replaces deprecated Promtail).
+  alloy: "latest"
 
-  # Wazuh agent (Wazuh upstream APT repo).
-  wazuh_agent: "4.9.*"
+  # Wazuh agent (Wazuh upstream APT repo, 5.x line).
+  wazuh_agent: "5.0.*"
 
 
 # -----------------------------------------------------------------------------
@@ -94,7 +93,6 @@ anssi_base:
     - debsums
     - libpam-pwquality
     - libpam-tmpdir
-    - libpam-google-authenticator
     - lsb-release
     - needrestart
     - nftables
@@ -291,20 +289,24 @@ anssi_base:
       sha_crypt_max_rounds: 65536
       encrypt_method: "YESCRYPT"
 
-  # ---- 3.7 SSH (R55-R63) and password + 2FA -----------------------------------
-  # Key-based auth is intentionally DISABLED, the user wants password + TOTP.
+  # ---- 3.7 SSH (R55-R63) - password only, no SSH key, no MFA -------------------
+  # This profile uses PASSWORD authentication ONLY:
+  #   * NO SSH key authentication (pubkey_authentication: false).
+  #   * NO MFA / TOTP (twofa.enabled: false below).
+  # SSH exposure is restricted at the FIREWALL layer to an IP allowlist that is
+  # refreshed from an Azure Blob Storage bucket (see nftables.ssh_restriction).
   ssh:
     port: 22
     listen_addresses:
       - "0.0.0.0"
       - "::"
     permit_root_login: "no"
-    password_authentication: true            # required: password is the 1st factor
+    password_authentication: true            # the only authentication factor
     pubkey_authentication: false             # explicit: NO key-based auth
-    kbd_interactive_authentication: true     # 2nd factor via PAM (TOTP)
-    challenge_response_authentication: true  # legacy alias kept for safety
+    kbd_interactive_authentication: false    # no PAM 2nd factor (no TOTP)
+    challenge_response_authentication: false # legacy alias, kept off
     use_pam: true
-    authentication_methods: "keyboard-interactive"
+    authentication_methods: "password"
     permit_empty_passwords: false
     x11_forwarding: false
     allow_tcp_forwarding: false
@@ -349,9 +351,9 @@ anssi_base:
         - "5.196.62.22"
         - "2a01:cb04:24f:42::/56"
         - "2001:41d0:203:61a0::1:6"
-    # PAM skips google_authenticator for these accounts (password only over SSH).
-    totp_exempt_users:
-      - superbis
+    # Unused in this profile (MFA is disabled). Kept for template compatibility
+    # if you ever re-enable twofa.enabled below.
+    totp_exempt_users: []
     deny_users:
       - "root"
     # Hardened crypto (R56 / R57).
@@ -374,15 +376,12 @@ anssi_base:
       - "rsa-sha2-256"
 
   # 2FA / TOTP (Google Authenticator PAM module).
-  # Provision a secret for each account in enforced_users (not in totp_exempt_users),
-  # run ON THE HOST as that Linux user, BEFORE enforcing this playbook:
-  #
-  #   google-authenticator -t -d -f -r 3 30 -W -e 5 -i "ANSSI-CRITICAL"
-  #   chmod 0400 ~/.google_authenticator
-  #
-  # (-r 3 30 must match anssi_base.twofa.rate_limit; -i matches twofa.issuer.)
+  # DISABLED in this profile: authentication is password-only and SSH access is
+  # restricted at the firewall layer (nftables.ssh_restriction) instead of MFA.
+  # Set enabled: true (and re-add libpam-google-authenticator to
+  # required_packages) only if you want to reintroduce TOTP.
   twofa:
-    enabled: true
+    enabled: false
     enforce_on_console: false        # only enforce TOTP on remote SSH
     issuer: "ANSSI-CRITICAL"
     rate_limit: "3 30"               # 3 attempts every 30 seconds
@@ -493,10 +492,55 @@ nftables:
   allow_icmpv4: true
   allow_icmpv6: true
 
-  # Services to expose. Each item: { proto, port, comment }.
-  # Example below opens SSH (22). Add more as needed.
-  allowed_services:
-    - { proto: "tcp", port: 22, comment: "SSH" }
+  # Services to expose GENERICALLY (subject to the GeoIP allow logic below).
+  # Each item: { proto, port, comment }.
+  # NOTE: SSH is intentionally NOT listed here. SSH exposure is handled by the
+  # dedicated `ssh_restriction` block below, which only accepts SSH from an IP
+  # allowlist refreshed from an Azure Blob Storage bucket (+ static_allow + the
+  # global ip_whitelist_*). Add any OTHER services (HTTP, etc.) here.
+  allowed_services: []
+  # Example:
+  #   - { proto: "tcp", port: 443, comment: "HTTPS" }
+
+  # ---- 4.0 SSH firewall IP restriction ----------------------------------------
+  # SSH (port below) is accepted ONLY from:
+  #   * the global ip_whitelist_v4 / ip_whitelist_v6 sets (accepted earlier), AND
+  #   * static_allow_v4 / static_allow_v6 (always-on break-glass sources), AND
+  #   * the dynamic allowlist pulled from Azure Blob Storage (ssh_allow sets).
+  # Every other source hitting the SSH port is dropped (and logged).
+  ssh_restriction:
+    enabled: true
+    port: 22
+
+    # Always-allowed SSH sources, independent of the Azure bucket. Keep at least
+    # your bastion / admin CIDRs here so a bucket outage can never lock you out.
+    static_allow_v4:
+      - "90.63.184.91/32"
+      - "5.196.62.22/32"
+    static_allow_v6:
+      - "2a01:cb04:24f:42::/56"
+      - "2001:41d0:203:61a0::1:6/128"
+
+    # Azure Blob Storage source for the dynamic SSH allowlist.
+    # The blob is a plain-text file with one IPv4/IPv6 address or CIDR per line
+    # (# comments and blank lines are ignored). It is fetched by
+    # /usr/local/sbin/anssi-ssh-allowlist-update on a systemd timer and merged
+    # with static_allow_* into the nftables ssh_allow_v4 / ssh_allow_v6 sets.
+    azure:
+      enabled: true
+      account_name: "mystorageacct"          # REPLACE: Azure storage account
+      container: "ssh-allowlist"             # REPLACE: blob container name
+      blob: "allowed-ips.txt"                # REPLACE: blob (file) name
+      endpoint_suffix: "core.windows.net"    # sovereign clouds differ
+      # Authentication. Preferred: Shared Key (the storage ACCOUNT KEY), passed
+      # via Ansible Vault as `azure_ssh_allowlist_key` and written to key_file
+      # with mode 0600. Alternatively provide a SAS token (sas_token) or leave
+      # both empty for an anonymous/public container.
+      key_file: "/etc/anssi-ssh-allowlist.key"
+      sas_token: ""
+      refresh_interval: "daily"              # daily | <systemd time> (e.g. 15min)
+      # Request timeout (seconds) when talking to Azure.
+      timeout: 30
 
   # ---- 4.1 GeoIP policy --------------------------------------------------------
   geoip:
@@ -667,21 +711,24 @@ docker:
 
 
 # -----------------------------------------------------------------------------
-# 7. LOKI / PROMTAIL ROLE (optional, log shipping)
+# 7. LOKI ROLE - Grafana Alloy log shipping (optional, replaces Promtail)
 # -----------------------------------------------------------------------------
+# Promtail reached end-of-life on 2026-03-02; this role now deploys Grafana
+# Alloy (the supported successor) from the official Grafana APT repository and
+# ships journald + auth.log + audit.log to a central Loki endpoint.
 loki:
-  # Promtail binary download.
-  binary_url: "https://github.com/grafana/loki/releases/download/v{{ versions.promtail }}/promtail-linux-amd64.zip"
-  binary_sha256: ""           # set to a known good hash for production
-  install_dir: "/usr/local/bin"
-  config_dir: "/etc/promtail"
-  positions_file: "/var/lib/promtail/positions.yaml"
+  # Grafana upstream APT repository (provides the `alloy` package).
+  repo_url: "https://apt.grafana.com"
+  repo_key_url: "https://apt.grafana.com/gpg-full.key"
+
+  config_dir: "/etc/alloy"
+  data_dir: "/var/lib/alloy"
 
   # Central Loki endpoint. Use HTTPS + basic auth + tenant header.
   url: "https://loki.example.org/loki/api/v1/push"
   tenant_id: "anssi-critical"
   basic_auth:
-    username: "promtail"
+    username: "alloy"
     password: "{{ loki_basic_auth_password | default('') }}"
   tls:
     ca_file: "/etc/ssl/certs/ca-certificates.crt"
@@ -693,21 +740,15 @@ loki:
     env: "critical"
     distro: "debian13"
 
-  # Files / units to scrape (in addition to journald).
-  scrape_configs:
-    - job_name: "journal"
-      type: "journal"
-      max_age: "12h"
-      labels: { job: "systemd-journal" }
-    - job_name: "auth"
-      type: "file"
-      paths:
-        - "/var/log/auth.log"
+  # Plain log files to tail (in addition to the systemd journal, which is
+  # always collected). Each entry becomes a local.file_match + loki.source.file
+  # pipeline in the rendered Alloy config.
+  file_sources:
+    - name: "auth"
+      path: "/var/log/auth.log"
       labels: { job: "auth" }
-    - job_name: "audit"
-      type: "file"
-      paths:
-        - "/var/log/audit/audit.log"
+    - name: "audit"
+      path: "/var/log/audit/audit.log"
       labels: { job: "audit" }
 
 
@@ -715,7 +756,7 @@ loki:
 # 8. WAZUH AGENT ROLE (optional, central SIEM)
 # -----------------------------------------------------------------------------
 wazuh:
-  repo_url: "https://packages.wazuh.com/4.x/apt/"
+  repo_url: "https://packages.wazuh.com/5.x/apt/"
   repo_key_url: "https://packages.wazuh.com/key/GPG-KEY-WAZUH"
 
   # Wazuh manager(s) the agent must register with.

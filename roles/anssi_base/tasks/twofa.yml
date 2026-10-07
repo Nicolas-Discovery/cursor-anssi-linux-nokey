@@ -13,15 +13,8 @@
     group: root
     mode: "0644"
 
-- name: "2FA - configure /etc/pam.d/sshd for password + TOTP chain"
-  ansible.builtin.template:
-    src: pam-sshd.j2
-    dest: /etc/pam.d/sshd
-    owner: root
-    group: root
-    mode: "0644"
-    backup: true
-  notify: Restart sshd
+# Note: /etc/pam.d/sshd is deployed unconditionally from ssh.yml (the template
+# renders the password + TOTP chain when anssi_base.twofa.enabled is true).
 
 - name: "2FA - sanity check that enforced users exist"
   ansible.builtin.getent:

@@ -22,7 +22,7 @@
         that:
           - "(ansible_ssh_private_key_file is not defined) or (ansible_ssh_private_key_file is none)"
         fail_msg: >-
-          This stack mandates password+TOTP authentication.
+          This stack mandates password-only authentication (no SSH key).
           Remove ansible_ssh_private_key_file from your inventory and use
           --ask-pass / ANSIBLE_BECOME_PASS instead.
         success_msg: "OK - inventory does not pin a private SSH key."
